@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-iftyZaUGAf6d7/IcXXMi1rtr1A1odSqvcpXICVzUNmU='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data: blob: https://tzmptqweehooidklvhpv.supabase.co; object-src https://tzmptqweehooidklvhpv.supabase.co; base-uri 'none'; form-action 'none'; manifest-src 'self'"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="のどぐろ家姫川"><meta name="theme-color" content="#23467A"></head><body>
+<html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-ElsIuC5opfyYTTPDucTqihjFCYW6Zre6n0xwHCAb2dc='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data: blob: https://tzmptqweehooidklvhpv.supabase.co; object-src https://tzmptqweehooidklvhpv.supabase.co; base-uri 'none'; form-action 'none'; manifest-src 'self'"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="のどぐろ家姫川"><meta name="theme-color" content="#23467A"></head><body>
 <title>のどぐろ家姫川</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -143,6 +143,12 @@ table.tbl{border-collapse:collapse;width:100%;font-size:14px}
 .pc .acts .btn{min-height:46px}
 .pc.working{border-color:var(--ok)}
 .pc.onbreak{border-color:var(--warn)}
+
+.temps{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
+.tmp{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:8px;padding:6px 10px;background:var(--surface)}
+.tmp>span{flex:1;font-size:13.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tmp input{width:5.5em;padding:6px 8px;border:1px solid var(--line);border-radius:7px;background:var(--surface);text-align:right;min-height:38px}
+.tmp small{color:var(--muted)}
 
 /* checklist */
 .chk{display:grid;gap:6px}
@@ -368,7 +374,7 @@ const CHG = {}; // 入力変更
 
 /* ===================== 状態 ===================== */
 const S = {
-  page: lsGet('rk.page', 'home'), month: curYM(), day: today(), year: new Date().getFullYear(), lastToday: today(),
+  page: lsGet('rk.page', 'home'), month: curYM(), day: today(), year: new Date().getFullYear(), lastToday: today(), week: today(),
   me: lsGet('rk.me', ''), assets: null, downloads: null, cache: {},
 };
 const SET = () => ({ ...DEF_SET, ...(Store.get('settings', 'main') || {}) });
@@ -494,7 +500,7 @@ function confirmDel() { // 2回押しで削除（ダイアログを使わない�
 /* ---- ファイル保存（CSV/HTML） ---- */
 const csvCell = v => { let s = String(v ?? ''); if (typeof v !== 'number' && /^[=+\-@\t\r]/.test(s)) s = "'" + s; /* 表計算ソフトの数式実行を防ぐ */ return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
 const toCSV = rows => '﻿' + rows.map(r => r.map(csvCell).join(',')).join('\r\n');
-const FN_MAP = [['ウメダ在庫一覧', 'umeda-stock-list'], ['衛生管理記録', 'hygiene-log'], ['小口現金出納帳', 'petty-cash'], ['固定資産台帳', 'fixed-assets'], ['労働者名簿', 'staff-register'], ['賃金台帳', 'wage-ledger'], ['アレルゲン表', 'allergens'], ['給与明細', 'payslip'], ['月別集計', 'monthly-summary'], ['バックアップ', '_backup'], ['のどぐろ家姫川', 'nodoguro-himekawa'], ['シフト表', 'shift'], ['仕訳帳', 'journal'], ['仕入帳', 'purchases'], ['経費帳', 'expenses'], ['出勤簿', 'attendance'], ['棚卸表', 'inventory'], ['原価表', 'recipe-costs'], ['メニュー', 'menu'], ['日報', 'daily-report']];
+const FN_MAP = [['ウメダ在庫一覧', 'umeda-stock-list'], ['相場表', 'market-prices'], ['衛生管理記録', 'hygiene-log'], ['小口現金出納帳', 'petty-cash'], ['固定資産台帳', 'fixed-assets'], ['労働者名簿', 'staff-register'], ['賃金台帳', 'wage-ledger'], ['アレルゲン表', 'allergens'], ['給与明細', 'payslip'], ['月別集計', 'monthly-summary'], ['バックアップ', '_backup'], ['のどぐろ家姫川', 'nodoguro-himekawa'], ['シフト表', 'shift'], ['仕訳帳', 'journal'], ['仕入帳', 'purchases'], ['経費帳', 'expenses'], ['出勤簿', 'attendance'], ['棚卸表', 'inventory'], ['原価表', 'recipe-costs'], ['メニュー', 'menu'], ['日報', 'daily-report']];
 function asciiName(fn) { // 一部のブラウザは日本語のファイル名を無視するため英数字に置き換える
   let s = fn; for (const [j, e] of FN_MAP) s = s.split(j).join(e);
   const m = s.match(/\.[a-z0-9]+$/i); const ext = m ? m[0] : ''; let base = ext ? s.slice(0, -ext.length) : s;
@@ -696,7 +702,7 @@ const NAV = [
   { g: '仕入・在庫', items: [['purch', '仕入帳'], ['order', '発注'], ['inv', '棚卸'], ['waste', '廃棄ロス'], ['items', '食材マスタ'], ['suppliers', '取引先']] },
   { g: 'メニュー', items: [['recipes', 'レシピ・原価'], ['allergen', 'アレルゲン表'], ['menu', 'メニュー制作']] },
   { g: '経理・申告', items: [['cash', '小口現金出納帳'], ['exp', '経費帳'], ['arap', '売掛・買掛'], ['fixed', '固定資産台帳'], ['annual', '年間集計・CSV']] },
-  { g: '卸・販売', items: [['umeda', 'ウメダ在庫一覧']] },
+  { g: '卸・販売', items: [['umeda', 'ウメダ在庫一覧'], ['souba', '相場表']] },
   { g: '', items: [['settings', '設定・バックアップ']] },
 ];
 const TITLES = Object.fromEntries(NAV.flatMap(g => g.items));
@@ -800,17 +806,41 @@ const F_DAILY = [
   { k: 'hcHand', label: '手洗い・トイレ', type: 'check', cl: '手洗いの徹底とトイレの清掃・消毒をした' },
   { k: 'hcNote', label: '異常があったときの内容と対応', full: true, ph: '例：冷蔵庫が12℃→設定を下げ再確認、食材は廃棄' },
 ];
+const FEVER = 37.5; // この体温以上は要注意
+const tempList = r => Object.entries((r && r.hcTemps) || {}).filter(([k, v]) => v !== '' && v != null).map(([k, v]) => ({ staff: k, name: staffName(k), t: num(v) }));
 const HC_CHECKS = [['hcHealth', '健康・手指'], ['hcRecv', '受入'], ['hcHeat', '加熱'], ['hcCool', '冷却・保管'], ['hcWash', '器具洗浄'], ['hcHand', '手洗い・トイレ']];
 function haccp(r) { // 日報1件の衛生記録の状態
-  const filled = r.hcFridge !== '' && r.hcFridge != null || HC_CHECKS.some(([k]) => r[k]);
+  const filled = r.hcFridge !== '' && r.hcFridge != null || HC_CHECKS.some(([k]) => r[k]) || tempList(r).length > 0;
   const ng = [];
   if (r.hcFridge !== '' && r.hcFridge != null && num(r.hcFridge) > 10) ng.push('冷蔵庫' + num(r.hcFridge) + '℃');
   if (r.hcFreezer !== '' && r.hcFreezer != null && num(r.hcFreezer) > -15) ng.push('冷凍庫' + num(r.hcFreezer) + '℃');
   for (const [k, l] of HC_CHECKS) if (!r[k]) ng.push(l);
+  for (const x of tempList(r)) if (x.t >= FEVER) ng.push(`${x.name} ${x.t}℃`);
   return { filled, ng, pill: !filled ? '<span class="pill">未記入</span>' : ng.length ? `<span class="pill warn">要確認</span>` : '<span class="pill ok">OK</span>' };
 }
 /* 日報の中の「今日の仕入」。保存すると仕入帳に記帳される */
-let dailyLines = [];
+let dailyLines = [], dailyOrders = [];
+/* 出勤者の体温 */
+const tempsHTML = v => {
+  const st = staffActive(); const t = (v && v.hcTemps) || {};
+  if (!st.length) return '<span class="small muted">スタッフを登録すると、ここに体温の入力欄が出ます</span>';
+  return `<div class="temps">${st.map(s2 => `<label class="tmp" for="tp_${esc(s2.id)}"><span>${esc(s2.name)}</span><input id="tp_${esc(s2.id)}" data-temp="${esc(s2.id)}" type="number" inputmode="decimal" step="0.1" min="34" max="42" value="${esc(t[s2.id] ?? '')}" placeholder="36.5"><small>℃</small></label>`).join('')}</div>`;
+};
+const readTemps = () => { const o = {}; for (const el of $$('[data-temp]')) if (el.value !== '') o[el.dataset.temp] = num(el.value); return o; };
+/* 今日の発注（保存すると発注履歴に残る） */
+const doRow = (l, i) => `<div class="ln" data-i="${esc(i)}">
+  <select data-chg="doSet" data-k="supplier" data-i="${esc(i)}" aria-label="発注先">${supOpts(l.supplier, '発注先を選ぶ')}</select>
+  <input value="${esc(l.note ?? '')}" data-inp="doSet" data-k="note" data-i="${esc(i)}" placeholder="発注内容（例：のどぐろ 5尾、甘エビ 2kg）" aria-label="発注内容" style="grid-column:span 2">
+  <input type="date" value="${esc(l.due ?? '')}" data-chg="doSet" data-k="due" data-i="${esc(i)}" aria-label="納品予定日">
+  <button type="button" class="btn sm" data-act="doDel" data-i="${esc(i)}" aria-label="この行を消す">×</button></div>`;
+function drawDO() {
+  const box = $('#dorders'); if (!box) return;
+  box.innerHTML = dailyOrders.map(doRow).join('') + `<div class="row"><button type="button" class="btn sm" data-act="doAdd">＋ 発注先を追加</button></div>`;
+}
+A.doAdd = () => { dailyOrders.push({ supplier: '', note: '', due: '' }); drawDO(); };
+A.doDel = el => { dailyOrders.splice(Number(el.dataset.i), 1); drawDO(); };
+CHG.doSet = el => { const l = dailyOrders[Number(el.dataset.i)]; if (l) l[el.dataset.k] = el.value; };
+const dailyOrderRecs = (ym, date) => L('order', ym).filter(o => o.src === 'daily' && o.date === date);
 const dlRow = (l, i) => `<div class="ln" data-i="${esc(i)}">
   <select data-chg="dlSet" data-k="supplier" data-i="${esc(i)}" aria-label="仕入先">${supOpts(l.supplier, '仕入先を選ぶ')}</select>
   <input type="number" inputmode="numeric" value="${esc(l.amount ?? '')}" data-inp="dlSet" data-k="amount" data-i="${esc(i)}" aria-label="金額（税込）" placeholder="金額">
@@ -837,16 +867,23 @@ function dailyForm(date) {
   dailyLines = dailyPurch(ym, date).sort((a, b) => String(a.id).localeCompare(String(b.id)))
     .map(p => ({ id: p.id, supplier: p.supplier, amount: num(p.a8) + num(p.a10), tax: num(p.a10) ? 10 : 8, pay: p.pay || '掛', desc: p.desc || '', invoice: p.invoice, rc: p.rc }));
   if (!dailyLines.length) dailyLines = [{ supplier: '', amount: '', tax: 8, pay: '掛' }];
+  dailyOrders = dailyOrderRecs(ym, date).map(o => ({ id: o.id, supplier: o.supplier, note: o.note || '', due: o.due || '' }));
+  if (!dailyOrders.length) dailyOrders = [{ supplier: '', note: '', due: '' }];
   openForm({
     title: dLong(date) + ' の日報', fields: F_DAILY, value: rec || { date, by: S.me ? staffName(S.me) : '' },
-    extra: `<div class="lines"><span class="small muted" style="font-weight:700;border-top:1px solid var(--line);padding-top:12px">今日の仕入（仕入先・金額・税率・支払方法）</span>
+    extra: `<div class="lines"><span class="small muted" style="font-weight:700;border-top:1px solid var(--line);padding-top:12px">出勤者の体温（${FEVER}℃以上は要注意として記録されます）</span>
+      ${tempsHTML(rec)}</div>
+      <div class="lines"><span class="small muted" style="font-weight:700;border-top:1px solid var(--line);padding-top:12px">今日の仕入（仕入先・金額・税率・支払方法）</span>
       <div id="dlines" class="lines"></div>
-      <small class="hint">${suppliers().length ? '食品は8%、酒類・包材は10%です。金額は税込で入力してください。' : '先に「取引先」で仕入先を登録してください。'}</small></div>`,
+      <small class="hint">${suppliers().length ? '食品は8%、酒類・包材は10%です。金額は税込で入力してください。' : '先に「取引先」で仕入先を登録してください。'}</small></div>
+      <div class="lines"><span class="small muted" style="font-weight:700;border-top:1px solid var(--line);padding-top:12px">今日の発注（保存すると「発注」画面の履歴に残ります）</span>
+      <div id="dorders" class="lines"></div></div>`,
     onSave: async v => {
       const l = v.cashLunch, d2 = v.cashDinner;
       v.cash = (l === '' || l == null) && (d2 === '' || d2 == null) ? (rec ? num(rec.cash) : '') : num(l) + num(d2); // 現金売上の合計
       const gl = v.guestsLunch, gd = v.guestsDinner;
       v.guests = (gl === '' || gl == null) && (gd === '' || gd == null) ? (rec ? num(rec.guests) : '') : num(gl) + num(gd); // 客数の合計
+      v.hcTemps = readTemps(); // 出勤者の体温
       const newYM = ymOf(v.date); const oldKey = MK('purch', ym), newKey = MK('purch', newYM);
       if (rec && v.date !== date) await Store.put(MK('daily', ym), date, null);
       await Store.put(MK('daily', newYM), v.date, v);
@@ -862,11 +899,21 @@ function dailyForm(date) {
         await Store.put(newKey, moved || !l.id ? uid() : l.id, p); n++;
       }
       for (const p of before) if (!dailyLines.some(l => l.id === p.id)) await Store.put(oldKey, p.id, null);
-      toast(n ? `日報を保存しました（仕入 ${n}件を仕入帳に記帳）` : '日報を保存しました');
+      // 発注
+      const oOld = MK('order', ym), oNew = MK('order', newYM), beforeO = dailyOrderRecs(ym, date);
+      let m = 0;
+      for (const l of dailyOrders) {
+        if (!l.supplier || !String(l.note || '').trim()) { if (l.id) await Store.put(oOld, l.id, null); continue; }
+        const o = { date: v.date, supplier: l.supplier, note: l.note.trim(), due: l.due || '', lines: [], status: '発注済', src: 'daily', by: S.me ? staffName(S.me) : '' };
+        if (moved && l.id) await Store.put(oOld, l.id, null);
+        await Store.put(oNew, moved || !l.id ? uid() : l.id, o); m++;
+      }
+      for (const o of beforeO) if (!dailyOrders.some(l => l.id === o.id)) await Store.put(oOld, o.id, null);
+      toast('日報を保存しました' + (n || m ? `（仕入 ${n}件・発注 ${m}件を記帳）` : ''));
     },
     onDelete: rec ? async () => { if (!confirmDel()) return; await Store.put(MK('daily', ym), date, null); closeModal(); toast('削除しました（仕入帳の記帳は残ります）'); } : null,
   });
-  drawDL();
+  drawDL(); drawDO();
 }
 A.dailyToday = () => dailyForm(today());
 A.dailyEdit = el => dailyForm(el.dataset.id);
@@ -882,7 +929,7 @@ P.daily = {
       const r = map[d]; const w = dowN(d); const cls = w === 0 ? 'sun' : w === 6 ? 'sat' : '';
       if (!r) return `<tr class="click dim ${cls}" data-act="dailyEdit" data-id="${esc(d)}"><td>${dLabel(d)}</td><td colspan="11" class="muted small">未記入（タップして記入）</td></tr>`;
       const t = dailyTotal(r);
-      return `<tr class="click ${cls}" data-act="dailyEdit" data-id="${esc(d)}"><td>${dLabel(d)}</td><td>${esc(r.weather || '')}</td><td class="n"><b>${yen(t)}</b></td><td class="n">${int(r.guests)}${(r.guestsLunch !== '' && r.guestsLunch != null) || (r.guestsDinner !== '' && r.guestsDinner != null) ? `<br><span class="small muted">昼${int(r.guestsLunch)}/夜${int(r.guestsDinner)}</span>` : ''}</td><td class="n">${num(r.guests) ? yen(t / num(r.guests)) : '—'}</td><td class="n">${r.cashLunch !== '' && r.cashLunch != null ? yen(r.cashLunch) : ''}</td><td class="n">${r.cashDinner !== '' && r.cashDinner != null ? yen(r.cashDinner) : (r.cashLunch === '' || r.cashLunch == null ? yen(r.cash) : '')}</td><td class="n">${yen(num(r.card) + num(r.qr) + num(r.other))}</td><td class="n">${pDay(r.date) ? yen(pDay(r.date)) : ''}</td><td>${haccp(r).pill}</td><td class="wrap small">${esc(r.note || '')}</td><td class="small muted">${esc(r.by || '')}</td></tr>`;
+      return `<tr class="click ${cls}" data-act="dailyEdit" data-id="${esc(d)}"><td>${dLabel(d)}</td><td>${esc(r.weather || '')}</td><td class="n"><b>${yen(t)}</b></td><td class="n">${int(r.guests)}${(r.guestsLunch !== '' && r.guestsLunch != null) || (r.guestsDinner !== '' && r.guestsDinner != null) ? `<br><span class="small muted">昼${int(r.guestsLunch)}/夜${int(r.guestsDinner)}</span>` : ''}</td><td class="n">${num(r.guests) ? yen(t / num(r.guests)) : '—'}</td><td class="n">${r.cashLunch !== '' && r.cashLunch != null ? yen(r.cashLunch) : ''}</td><td class="n">${r.cashDinner !== '' && r.cashDinner != null ? yen(r.cashDinner) : (r.cashLunch === '' || r.cashLunch == null ? yen(r.cash) : '')}</td><td class="n">${yen(num(r.card) + num(r.qr) + num(r.other))}</td><td class="n">${pDay(r.date) ? yen(pDay(r.date)) : ''}</td><td>${haccp(r).pill}${tempList(r).length ? `<br><span class="small muted">体温${tempList(r).length}名</span>` : ''}</td><td class="wrap small">${esc(r.note || '')}</td><td class="small muted">${esc(r.by || '')}</td></tr>`;
     }).join('');
     return `<div class="stats">${stat('売上合計', yen(tot), `${recs.length}営業日`)}${stat('日平均', yen(recs.length ? tot / recs.length : 0))}${stat('客数', int(g) + '人', (g ? '平均客単価 ' + yen(tot / g) : '') + (sum(recs, r => r.guestsLunch) || sum(recs, r => r.guestsDinner) ? `　昼${int(sum(recs, r => r.guestsLunch))}/夜${int(sum(recs, r => r.guestsDinner))}` : ''))}${stat('現金売上（昼／夜）', yen(sum(recs, r => r.cashLunch)) + ' / ' + yen(sum(recs, r => (r.cashLunch === '' || r.cashLunch == null) && (r.cashDinner === '' || r.cashDinner == null) ? r.cash : r.cashDinner)))}${stat('衛生記録', recs.filter(r => haccp(r).filled).length + ' / ' + recs.length + '日', recs.filter(r => haccp(r).filled && haccp(r).ng.length).length ? '要確認 ' + recs.filter(r => haccp(r).filled && haccp(r).ng.length).length + '日' : '')}</div>
     <div class="toolbar"><button class="btn primary" data-act="dailyToday">今日の日報を書く</button><span class="sp"></span><button class="btn" data-act="dailyCSV">CSV保存</button><button class="btn" data-act="hcPrint">衛生記録を印刷用に保存</button></div>
@@ -893,21 +940,21 @@ P.daily = {
 };
 A.dailyCSV = () => {
   const recs = L('daily', S.month).sort(byDate);
-  saveFile(`日報_${S.month}.csv`, toCSV([['日付', '天気', '売上合計', '現金(ランチ)', '現金(ディナー)', '現金合計', 'カード', 'QR・電子マネー', 'その他', 'うちテイクアウト', '客数(ランチ)', '客数(ディナー)', '客数合計', '組数', '記入者', '特記事項', '冷蔵庫(℃)', '冷凍庫(℃)', ...HC_CHECKS.map(c => c[1]), '衛生の異常と対応'],
+  saveFile(`日報_${S.month}.csv`, toCSV([['日付', '天気', '売上合計', '現金(ランチ)', '現金(ディナー)', '現金合計', 'カード', 'QR・電子マネー', 'その他', 'うちテイクアウト', '客数(ランチ)', '客数(ディナー)', '客数合計', '組数', '記入者', '特記事項', '冷蔵庫(℃)', '冷凍庫(℃)', ...HC_CHECKS.map(c => c[1]), '出勤者の体温', '衛生の異常と対応'],
     ...recs.map(r => [r.date, r.weather, dailyTotal(r), num(r.cashLunch), (r.cashLunch === '' || r.cashLunch == null) && (r.cashDinner === '' || r.cashDinner == null) ? num(r.cash) : num(r.cashDinner), num(r.cash), num(r.card), num(r.qr), num(r.other), num(r.takeout), num(r.guestsLunch), num(r.guestsDinner), num(r.guests), num(r.groups), r.by, r.note,
-      r.hcFridge ?? '', r.hcFreezer ?? '', ...HC_CHECKS.map(([k]) => r[k] ? '○' : ''), r.hcNote || ''])]));
+      r.hcFridge ?? '', r.hcFreezer ?? '', ...HC_CHECKS.map(([k]) => r[k] ? '○' : ''), tempList(r).map(x => `${x.name} ${x.t}℃`).join('、'), r.hcNote || ''])]));
 };
 
 A.hcPrint = () => {
   const set = SET(); const recs = L('daily', S.month).sort(byDate);
   const rows = monthDays(S.month).map(d => {
-    const r = recs.find(x => x.date === d); if (!r || !haccp(r).filled) return `<tr><td>${dLabel(d)}</td><td colspan="${HC_CHECKS.length + 3}" style="color:#888">—</td></tr>`;
-    return `<tr><td>${dLabel(d)}</td><td class="n">${esc(r.hcFridge ?? '')}</td><td class="n">${esc(r.hcFreezer ?? '')}</td>${HC_CHECKS.map(([k]) => `<td style="text-align:center">${r[k] ? '○' : '×'}</td>`).join('')}<td>${esc(r.hcNote || '')}</td><td>${esc(r.by || '')}</td></tr>`;
+    const r = recs.find(x => x.date === d); if (!r || !haccp(r).filled) return `<tr><td>${dLabel(d)}</td><td colspan="${HC_CHECKS.length + 4}" style="color:#888">—</td></tr>`;
+    return `<tr><td>${dLabel(d)}</td><td class="n">${esc(r.hcFridge ?? '')}</td><td class="n">${esc(r.hcFreezer ?? '')}</td>${HC_CHECKS.map(([k]) => `<td style="text-align:center">${r[k] ? '○' : '×'}</td>`).join('')}<td>${esc(tempList(r).map(x => `${x.name} ${x.t}℃`).join('、'))}</td><td>${esc(r.hcNote || '')}</td><td>${esc(r.by || '')}</td></tr>`;
   }).join('');
   saveFile(`衛生管理記録_${S.month}.html`, printDoc(`衛生管理記録 ${ymLabel(S.month)}`,
     `<h1>衛生管理の記録（HACCPの考え方を取り入れた衛生管理）</h1>
      <div class="meta">${esc(set.shop || set.trade || '')}　${esc(ymLabel(S.month))}　食品衛生責任者：${esc(set.owner || '')}</div>
-     <table><thead><tr><th>日付</th><th>冷蔵庫℃</th><th>冷凍庫℃</th>${HC_CHECKS.map(c => `<th>${esc(c[1])}</th>`).join('')}<th>異常と対応</th><th>確認者</th></tr></thead><tbody>${rows}</tbody></table>
+     <table><thead><tr><th>日付</th><th>冷蔵庫℃</th><th>冷凍庫℃</th>${HC_CHECKS.map(c => `<th>${esc(c[1])}</th>`).join('')}<th>出勤者の体温</th><th>異常と対応</th><th>確認者</th></tr></thead><tbody>${rows}</tbody></table>
      <p style="font-size:9pt">○＝確認済み　×＝未確認　—＝記録なし。この記録は1年間保存してください。</p>`));
 };
 
@@ -1247,7 +1294,7 @@ P.order = {
     <div class="row" style="margin-top:12px"><button class="btn primary big" data-act="orderMake">発注書をつくる</button><span class="muted small">LINE・メール・FAX用の文面を作成し、履歴に残します</span></div>`
         : emptyBox('この取引先の食材がありません', '「食材マスタ」で仕入先を設定すると、ここに並びます', '<button class="btn primary" data-go="items">食材マスタへ</button>')}
     <section class="sec" style="margin-top:26px"><h3>発注履歴（今月・先月）</h3>
-      ${hist.length ? `<div class="tw"><table class="tbl"><thead><tr><th>日付</th><th>発注先</th><th>内容</th><th>状態</th><th></th></tr></thead><tbody>${hist.map(o => `<tr><td>${dLabel(o.date)}</td><td>${esc(supName(o.supplier))}</td><td class="wrap small">${esc((o.lines || []).map(l => (itemById(l.item) || { name: l.name }).name + ' ' + l.qty + (l.unit || '')).join('、'))}</td><td>${o.status === '納品済' ? '<span class="pill ok">納品済</span>' : '<span class="pill acc">発注済</span>'}</td><td class="row" style="flex-wrap:nowrap"><button class="btn sm" data-act="orderText" data-id="${esc(o.id)}" data-ym="${esc(ymOf(o.date))}">文面</button>${o.status !== '納品済' ? `<button class="btn sm" data-act="orderRecv" data-id="${esc(o.id)}" data-ym="${esc(ymOf(o.date))}">納品→仕入帳へ</button>` : ''}</td></tr>`).join('')}</tbody></table></div>` : emptyBox('発注履歴はありません', '')}
+      ${hist.length ? `<div class="tw"><table class="tbl"><thead><tr><th>日付</th><th>発注先</th><th>内容</th><th>状態</th><th></th></tr></thead><tbody>${hist.map(o => `<tr><td>${dLabel(o.date)}</td><td>${esc(supName(o.supplier))}</td><td class="wrap small">${esc((o.lines || []).length ? (o.lines || []).map(l => (itemById(l.item) || { name: l.name }).name + ' ' + l.qty + (l.unit || '')).join('、') : (o.note || ''))}${o.src === 'daily' ? ' <span class="pill acc">日報から</span>' : ''}${o.due ? ` <span class="small muted">納品${dLabel(o.due)}</span>` : ''}</td><td>${o.status === '納品済' ? '<span class="pill ok">納品済</span>' : '<span class="pill acc">発注済</span>'}</td><td class="row" style="flex-wrap:nowrap"><button class="btn sm" data-act="orderText" data-id="${esc(o.id)}" data-ym="${esc(ymOf(o.date))}">文面</button>${o.status !== '納品済' ? `<button class="btn sm" data-act="orderRecv" data-id="${esc(o.id)}" data-ym="${esc(ymOf(o.date))}">納品→仕入帳へ</button>` : ''}</td></tr>`).join('')}</tbody></table></div>` : emptyBox('発注履歴はありません', '')}
     </section>`;
   }
 };
@@ -1287,15 +1334,29 @@ P.inv = {
     const isDec = S.month.endsWith('-12');
     return `<div class="stats">${stat(ymLabel(S.month) + '末 棚卸高', yen(tot), isDec ? '＝この年の期末棚卸高（確定申告）' : '')}${stat('品目数', list.length)}${stat('入力済み', list.filter(r => r.qty !== '' && r.qty != null).length + ' / ' + list.length)}</div>
     ${isDec ? '<div class="note-box">12月末の棚卸高は、青色申告決算書の「期末商品（製品）棚卸高」になります。売れ残った食材・酒類を数えて入力してください。</div>' : ''}
-    <div class="toolbar"><button class="btn primary" data-act="invFill">食材マスタから一覧を作る</button><button class="btn" data-act="invAdd">＋ 品目を追加</button><span class="sp"></span><button class="btn" data-act="invCSV">棚卸表CSV</button></div>
-    ${list.length ? `<div class="tw"><table class="tbl"><thead><tr><th>分類</th><th>品目</th><th>単位</th><th class="n">単価（税抜）</th><th class="n">数量</th><th class="n">金額</th><th></th></tr></thead><tbody>${list.map(r => `<tr><td class="muted">${esc(r.cat || '')}</td><td><b>${esc(r.name)}</b></td><td>${esc(r.unit || '')}</td><td class="n">${yen(r.price)}</td><td class="n" style="width:110px"><input id="iq_${esc(r.id)}" type="number" inputmode="decimal" value="${esc(r.qty ?? '')}" data-chg="invQty" data-id="${esc(r.id)}"></td><td class="n" id="ia_${esc(r.id)}">${yen(num(r.qty) * num(r.price))}</td><td><button class="btn sm" data-act="invDel" data-id="${esc(r.id)}">除く</button></td></tr>`).join('')}</tbody><tfoot><tr><td colspan="5">合計</td><td class="n">${yen(tot)}</td><td></td></tr></tfoot></table></div>`
-        : emptyBox('この月の棚卸はまだありません', '「食材マスタから一覧を作る」で品目が並びます')}`;
+    <div class="toolbar"><button class="btn primary" data-act="invCopy">前月からコピー</button><button class="btn" data-act="invFill">食材マスタから一覧を作る</button><button class="btn" data-act="invAdd">＋ 品目を追加</button><span class="sp"></span><button class="btn" data-act="invCSV">棚卸表CSV</button></div>
+    ${list.length ? `<div class="tw"><table class="tbl"><thead><tr><th>分類</th><th>品目</th><th>単位</th><th class="n">単価（税抜）</th><th class="n">数量</th><th class="n">金額</th><th></th></tr></thead><tbody>${list.map(r => `<tr><td class="muted">${esc(r.cat || '')}</td><td><b>${esc(r.name)}</b></td><td>${esc(r.unit || '')}</td><td class="n">${num(r.price) % 1 ? '¥' + num(r.price).toFixed(2) : yen(r.price)}</td><td class="n" style="width:110px"><input id="iq_${esc(r.id)}" type="number" inputmode="decimal" value="${esc(r.qty ?? '')}" data-chg="invQty" data-id="${esc(r.id)}"></td><td class="n" id="ia_${esc(r.id)}">${yen(num(r.qty) * num(r.price))}</td><td><button class="btn sm" data-act="invDel" data-id="${esc(r.id)}">除く</button></td></tr>`).join('')}</tbody><tfoot><tr><td colspan="5">合計</td><td class="n">${yen(tot)}</td><td></td></tr></tfoot></table></div>`
+        : emptyBox('この月の棚卸はまだありません', '前月と同じ品目で数えるなら「前月からコピー」、初めてなら「食材マスタから一覧を作る」', '<button class="btn primary" data-act="invCopy">前月からコピー</button> <button class="btn" data-act="invFill">食材マスタから一覧を作る</button>')}`;
   }
 };
 A.invFill = async () => {
   const key = MK('inv', S.month); const have = new Set(L('inv', S.month).map(r => r.item));
   let n = 0; for (const it of items()) { if (have.has(it.id)) continue; await Store.put(key, it.id, { item: it.id, name: it.name, cat: it.cat || '', unit: it.unit || '', price: num(it.price), qty: '' }); n++; }
   toast(n ? n + '品目を追加しました' : '追加する品目はありません（食材マスタを確認）');
+};
+A.invCopy = async () => {
+  const prev = addMonth(S.month, -1); const key = MK('inv', S.month);
+  const src = await Store.fetch(MK('inv', prev));
+  if (!src.length) { toast(`${ymLabel(prev)}の棚卸がありません`); return; }
+  const have = new Set(L('inv', S.month).map(r => r.item || r.name));
+  let n = 0;
+  for (const r of src) {
+    if (have.has(r.item || r.name)) continue;
+    const it = r.item ? itemById(r.item) : null; // 単価は食材マスタが新しければそちらを使う
+    const rec = { item: r.item || '', name: r.name, cat: r.cat || '', unit: r.unit || (it ? it.unit : ''), price: it ? num(it.price) : num(r.price), qty: '' };
+    await Store.put(key, r.item || uid(), rec); n++;
+  }
+  toast(n ? `${ymLabel(prev)}から${n}品目をコピーしました（数量は空欄）` : 'コピーする品目はありません（すでに入っています）');
 };
 A.invAdd = () => openForm({ title: '棚卸品目を追加', fields: [{ k: 'name', label: '品目', req: true }, { k: 'cat', label: '分類' }, { k: 'unit', label: '単位' }, { k: 'price', label: '単価（税抜）', type: 'money' }, { k: 'qty', label: '数量', type: 'num' }], onSave: async v => { await Store.put(MK('inv', S.month), uid(), v); } });
 A.invDel = async el => { await Store.put(MK('inv', S.month), el.dataset.id, null); };
@@ -2004,6 +2065,110 @@ A.umPrint = () => {
   <div class="foot"><span>${esc(s.note || '')}</span><span>${esc(s.company)}</span></div>
   </body></html>`;
   saveFile(`ウメダ在庫一覧_${d}.html`, html);
+};
+/* ---------- 相場表（週1回作成・お客様配布／社内用） ---------- */
+const SB_CATS = ['鮮魚', '貝類', '干物・加工', '冷凍', 'その他'];
+const DEF_SOUBA = { title: '週間相場表', company: '株式会社ウメダ', note: '相場は変動します。ご注文時に最新をご確認ください。', prevCol: true };
+const soubaSet = () => ({ ...DEF_SOUBA, ...(Store.get('settings', 'souba') || {}) });
+const soubaKey = w => MK('souba', w);
+const soubaItems = w => Store.list(soubaKey(w)).sort((a, b) =>
+  (SB_CATS.indexOf(a.cat || 'その他') - SB_CATS.indexOf(b.cat || 'その他')) || (num(a.order) - num(b.order)) || String(a.name).localeCompare(String(b.name), 'ja'));
+const weekLabel = w => `${Number(w.slice(5, 7))}/${Number(w.slice(8, 10))}（${DOW[dowN(w)]}）の週`;
+const F_SOUBA = [
+  { k: 'cat', label: '分類', type: 'select', opts: SB_CATS, def: '鮮魚' },
+  { k: 'name', label: '品名', req: true, full: true, ph: '例：のどぐろ　中' },
+  { k: 'origin', label: '産地', list: ['能生', '糸魚川', '新潟', '石川', '富山', '山形', '鳥取', '北海道', '長崎', '韓国'] },
+  { k: 'spec', label: '規格・サイズ', ph: '例：200〜250g' },
+  { k: 'unit', label: '単位', list: ['kg', '1尾', '1枚', '1箱', '1p', '1ケース'], def: 'kg' },
+  { k: 'price', label: '相場（円）', type: 'money' },
+  { k: 'prev', label: '前週（円）', type: 'money', hint: '「前週からコピー」で自動で入ります' },
+  { k: 'note', label: '備考', full: true },
+  { k: 'order', label: '表示順', type: 'num' },
+  { k: 'off', label: '掲載', type: 'check', cl: '今週は載せない' },
+];
+A.soubaWeek = el => { S.week = addDay(S.week, Number(el.dataset.n) * 7); S.cache = {}; pruneSubs(); render(); };
+CHG.soubaWeek = el => { if (el.value) { S.week = el.value; el.blur(); pruneSubs(); render(); } };
+A.soubaAdd = () => openForm({
+  title: '相場表の品目を追加', fields: F_SOUBA, value: { cat: '鮮魚', unit: 'kg', order: (soubaItems(S.week).length + 1) * 10 },
+  onSave: async v => { delete v.id; await Store.put(soubaKey(S.week), uid(), v); toast('追加しました'); },
+});
+A.soubaEdit = el => {
+  const rec = Store.get(soubaKey(S.week), el.dataset.id);
+  openForm({
+    title: '相場表の品目', fields: F_SOUBA, value: rec,
+    onSave: async v => { const id = v.id; delete v.id; await Store.put(soubaKey(S.week), id, v); toast('保存しました'); },
+    onDelete: async () => { if (!confirmDel()) return; await Store.put(soubaKey(S.week), rec.id, null); closeModal(); toast('削除しました'); },
+  });
+};
+CHG.soubaPrice = async el => { const r = Store.get(soubaKey(S.week), el.dataset.id); if (!r) return; await Store.put(soubaKey(S.week), r.id, { ...r, price: el.value === '' ? '' : num(el.value) }); };
+CHG.soubaHead = async el => { const v = { ...soubaSet() }; delete v.id; v[el.dataset.k] = el.type === 'checkbox' ? el.checked : el.value; await Store.put('settings', 'souba', v); };
+A.soubaCopy = async () => {
+  const prev = addDay(S.week, -7);
+  const src = (await Store.fetch(soubaKey(prev))).filter(i => !i.off);
+  if (!src.length) { toast(`${weekLabel(prev)}の相場表がありません`); return; }
+  if (soubaItems(S.week).length && !confirmDel()) { toast('今週にすでに品目があります。もう一度押すと前週の内容を追加します'); return; }
+  for (const i of src) { const n = { ...i, prev: num(i.price), price: '', off: false }; delete n.id; await Store.put(soubaKey(S.week), uid(), n); }
+  toast(`${src.length}品を前週からコピーしました（相場は空欄）`);
+};
+const soubaDiff = i => {
+  const p = num(i.price), q = num(i.prev);
+  if (!p || !q) return { txt: '', cls: '' };
+  const d = p - q;
+  return { txt: (d > 0 ? '+' : d < 0 ? '−' : '±') + int(Math.abs(d)), cls: d > 0 ? 'bad' : d < 0 ? 'ok' : '' };
+};
+P.souba = {
+  keys: () => [soubaKey(S.week), 'settings'],
+  render() {
+    const s = soubaSet(); const list = soubaItems(S.week); const live = list.filter(i => !i.off);
+    const byCat = groupBy(list, i => i.cat || 'その他');
+    const up = live.filter(i => soubaDiff(i).cls === 'bad').length, down = live.filter(i => soubaDiff(i).cls === 'ok').length;
+    return `<div class="toolbar"><span class="field-inline"><button class="btn sm" data-act="soubaWeek" data-n="-1" aria-label="前の週">◀</button><input type="date" id="soubaDate" value="${esc(S.week)}" data-chg="soubaWeek"><button class="btn sm" data-act="soubaWeek" data-n="1" aria-label="次の週">▶</button></span><b>${esc(weekLabel(S.week))}</b><span class="sp"></span><button class="btn" data-act="soubaCopy">前週からコピー</button><button class="btn primary" data-act="soubaAdd">＋ 品目を追加</button></div>
+    <div class="stats">${stat('掲載品目', live.length + '品', list.length - live.length ? `非掲載 ${list.length - live.length}品` : '')}${stat('値上がり', up + '品')}${stat('値下がり', down + '品')}${stat('相場の記入', live.filter(i => i.price !== '' && i.price != null).length + ' / ' + live.length)}</div>
+    ${list.length ? `<div class="tw"><table class="tbl"><thead><tr><th>分類</th><th>品名</th><th>産地</th><th>規格</th><th>単位</th><th class="n">前週</th><th class="n">今週の相場</th><th class="n">前週比</th><th>備考</th><th></th></tr></thead><tbody>${SB_CATS.filter(c => byCat[c]).map(c => `
+      <tr><td colspan="10" style="background:var(--surface2);font-weight:700">${esc(c)}</td></tr>
+      ${byCat[c].map(i => { const d = soubaDiff(i); return `<tr class="${i.off ? 'dim' : ''}"><td></td><td class="click" data-act="soubaEdit" data-id="${esc(i.id)}"><b>${esc(i.name)}</b>${i.off ? ' <span class="pill">非掲載</span>' : ''}</td><td>${esc(i.origin || '')}</td><td class="small">${esc(i.spec || '')}</td><td>${esc(i.unit || '')}</td><td class="n muted">${i.prev !== '' && i.prev != null ? int(i.prev) : ''}</td><td class="n" style="width:120px"><input id="sp_${esc(i.id)}" type="number" inputmode="numeric" value="${esc(i.price ?? '')}" data-chg="soubaPrice" data-id="${esc(i.id)}"></td><td class="n">${d.txt ? `<span class="pill ${d.cls}">${d.txt}</span>` : ''}</td><td class="wrap small">${esc(i.note || '')}</td><td><button class="btn sm" data-act="soubaEdit" data-id="${esc(i.id)}">編集</button></td></tr>`; }).join('')}`).join('')}</tbody></table></div>
+    <div class="card" style="margin-top:20px"><h3>表の見出し（印刷に出ます）</h3>
+      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:10px">
+        <label class="f"><span>表題</span><input id="sb_title" value="${esc(s.title)}" data-chg="soubaHead" data-k="title"></label>
+        <label class="f"><span>会社名</span><input id="sb_company" value="${esc(s.company)}" data-chg="soubaHead" data-k="company"></label>
+        <label class="f full"><span>下部の一言</span><input id="sb_note" value="${esc(s.note)}" data-chg="soubaHead" data-k="note"></label>
+        <label class="field-inline"><input type="checkbox" id="sb_pc" data-chg="soubaHead" data-k="prevCol"${s.prevCol ? ' checked' : ''}> 前週の相場と増減を印刷に載せる</label>
+      </div>
+      <div class="row" style="margin-top:12px"><button class="btn" data-act="soubaCSV">CSV保存</button><button class="btn primary" data-act="soubaPrint">A4の印刷用に保存</button></div>
+    </div>
+    <p class="hint">相場は表の中で直接書き換えられます。毎週「前週からコピー」で品目を引き継ぎ、今週の相場を入れていく使い方を想定しています。</p>`
+        : emptyBox(weekLabel(S.week) + 'の相場表はまだありません', '前の週の内容を引き継ぐか、品目を1つずつ追加してください', '<button class="btn primary" data-act="soubaCopy">前週からコピー</button> <button class="btn" data-act="soubaAdd">＋ 品目を追加</button>')}`;
+  }
+};
+A.soubaCSV = () => saveFile(`相場表_${S.week}.csv`, toCSV([['週', '分類', '品名', '産地', '規格', '単位', '前週', '今週', '前週比', '備考'],
+  ...soubaItems(S.week).map(i => [S.week, i.cat, i.name, i.origin, i.spec, i.unit, num(i.prev), num(i.price), num(i.price) && num(i.prev) ? num(i.price) - num(i.prev) : '', i.note])]));
+A.soubaPrint = () => {
+  const s = soubaSet(); const list = soubaItems(S.week).filter(i => !i.off);
+  const byCat = groupBy(list, i => i.cat || 'その他');
+  const pc = s.prevCol; const cols = 6 + (pc ? 2 : 0);
+  const rows = SB_CATS.filter(c => byCat[c]).map(c => `<tr class="cat"><td colspan="${cols}">${esc(c)}</td></tr>` +
+    byCat[c].map(i => { const d = soubaDiff(i); return `<tr><td class="nm">${esc(i.name)}</td><td class="c">${esc(i.origin || '')}</td><td class="c">${esc(i.spec || '')}</td><td class="c">${esc(i.unit || '')}</td>${pc ? `<td class="n">${i.prev !== '' && i.prev != null ? int(i.prev) : ''}</td>` : ''}<td class="n">${i.price !== '' && i.price != null ? int(i.price) : ''}</td>${pc ? `<td class="c">${esc(d.txt)}</td>` : ''}<td>${esc(i.note || '')}</td></tr>`; }).join('')).join('');
+  const html = `<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>${esc(s.title)} ${S.week}</title><style>
+  @page{size:A4 portrait;margin:12mm 10mm}
+  *{box-sizing:border-box}
+  body{font-family:"BIZ UDPGothic","Hiragino Sans","Yu Gothic","Meiryo",sans-serif;color:#000;margin:0;font-size:10.5pt}
+  .ttl{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:2mm}
+  .ttl h1{font-size:17pt;margin:0;padding:0 10mm 1mm;border-bottom:1.2pt solid #000;letter-spacing:.3em}
+  .ttl .w{font-size:11pt}
+  table{border-collapse:collapse;width:100%}
+  th,td{border:.8pt solid #000;padding:1.1mm 1.6mm;font-size:10pt;line-height:1.25}
+  th{background:#f0f0f0;text-align:center;font-weight:700}
+  td.c{text-align:center}td.n{text-align:right;font-variant-numeric:tabular-nums}
+  td.nm{padding-left:2.5mm}
+  tr.cat td{text-align:center;font-weight:700;letter-spacing:.4em;background:#fafafa}
+  tr{break-inside:avoid}
+  .foot{margin-top:3mm;font-size:9pt;display:flex;justify-content:space-between}
+  </style></head><body>
+  <div class="ttl"><span class="w">${esc(weekLabel(S.week))}</span><h1>${esc(s.title)}</h1><span class="w">${esc(S.week.replace(/-/g, '/'))}作成</span></div>
+  <table><thead><tr><th style="width:${pc ? 26 : 34}%">品名</th><th style="width:9%">産地</th><th style="width:13%">規格</th><th style="width:8%">単位</th>${pc ? '<th style="width:10%">前週</th>' : ''}<th style="width:11%">相場</th>${pc ? '<th style="width:9%">増減</th>' : ''}<th>備考</th></tr></thead><tbody>${rows}</tbody></table>
+  <div class="foot"><span>${esc(s.note || '')}</span><span>${esc(s.company)}</span></div>
+  </body></html>`;
+  saveFile(`相場表_${S.week}.html`, html);
 };
 </script>
 </body></html>
