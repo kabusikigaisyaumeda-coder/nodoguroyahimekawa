@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-fv3glmiqzn1OR2rZn/EcQv9Osq42cPptbgBnNCj3e5w='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data: blob: https://tzmptqweehooidklvhpv.supabase.co; object-src https://tzmptqweehooidklvhpv.supabase.co; base-uri 'none'; form-action 'none'; manifest-src 'self'"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="のどぐろ家姫川"><meta name="theme-color" content="#23467A"></head><body>
+<html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-aLR0OoNiorM2q/H+N3jG+QVDNePJ4R85SH0eA+aP04A='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data: blob: https://tzmptqweehooidklvhpv.supabase.co; object-src https://tzmptqweehooidklvhpv.supabase.co; base-uri 'none'; form-action 'none'; manifest-src 'self'"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="のどぐろ家姫川"><meta name="theme-color" content="#23467A"></head><body>
 <title>のどぐろ家姫川</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -497,10 +497,10 @@ function crud({ key, fields, title, defaults = {}, afterSave }) {
   };
 }
 let delArmed = 0;
-function confirmDel() { // 2回押しで削除（ダイアログを使わない）
+function confirmDel(extra) { // 2回押しで削除（ダイアログを使わない）
   const now = Date.now();
   if (now - delArmed < 3000) { delArmed = 0; return true; }
-  delArmed = now; toast('もう一度「削除」を押すと削除します'); return false;
+  delArmed = now; toast('もう一度「削除」を押すと削除します' + (extra || '')); return false;
 }
 
 /* ---- ファイル保存（CSV/HTML） ---- */
@@ -979,7 +979,16 @@ function dailyForm(date) {
       toast('日報を保存しました' + (n || m ? `（仕入 ${n}件・発注 ${m}件を記帳）` : ''));
       sendDailyMail(v, dailyLines, dailyOrders);
     },
-    onDelete: rec ? async () => { if (!confirmDel()) return; await Store.put(MK('daily', ym), date, null); closeModal(); toast('削除しました（仕入帳の記帳は残ります）'); } : null,
+    onDelete: rec ? async () => { // 日報から記帳した仕入・発注もいっしょに消す
+      const ps = dailyPurch(ym, date), os = dailyOrderRecs(ym, date);
+      const linked = ps.length || os.length ? `（この日報から記帳した 仕入 ${ps.length}件・発注 ${os.length}件 もいっしょに消えます）` : '';
+      if (!confirmDel(linked)) return;
+      for (const p of ps) await Store.put(MK('purch', ym), p.id, null);
+      for (const o of os) await Store.put(MK('order', ym), o.id, null);
+      await Store.put(MK('daily', ym), date, null);
+      closeModal();
+      toast('日報を削除しました' + (ps.length || os.length ? `（仕入 ${ps.length}件・発注 ${os.length}件も削除）` : ''));
+    } : null,
   });
   drawDL(); drawDO();
 }
