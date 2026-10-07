@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-aLR0OoNiorM2q/H+N3jG+QVDNePJ4R85SH0eA+aP04A='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data: blob: https://tzmptqweehooidklvhpv.supabase.co; object-src https://tzmptqweehooidklvhpv.supabase.co; base-uri 'none'; form-action 'none'; manifest-src 'self'"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="のどぐろ家姫川"><meta name="theme-color" content="#23467A"></head><body>
+<html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-3eheHm6ReKsfYnK0cRCdiyKIPhfe7kQAI86dpFjICm8='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data: blob: https://tzmptqweehooidklvhpv.supabase.co; object-src https://tzmptqweehooidklvhpv.supabase.co; base-uri 'none'; form-action 'none'; manifest-src 'self'"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="のどぐろ家姫川"><meta name="theme-color" content="#23467A"></head><body>
 <title>のどぐろ家姫川</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -116,6 +116,10 @@ table.tbl{border-collapse:collapse;width:100%;font-size:14px}
 .field-inline input,.field-inline select{padding:6px 9px;border:1px solid var(--line);border-radius:8px;background:var(--surface);min-height:38px}
 .note-box{border-left:3px solid var(--accent);background:var(--accent-soft);padding:10px 14px;border-radius:0 8px 8px 0;font-size:13.5px;margin-bottom:16px}
 .note-box.warn{border-color:var(--warn);background:var(--warn-soft)}
+.note-box.ok{border-color:var(--ok);background:var(--ok-soft)}
+.note-box.bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.note-box.bar>.sp{flex:1 1 240px}
+.note-box.bar .small{color:var(--muted)}
 .kv{display:grid;grid-template-columns:auto 1fr;gap:6px 18px;font-size:14px}
 .kv dt{color:var(--muted)}
 .kv dd{margin:0;text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
@@ -714,9 +718,26 @@ const NAV = [
 const TITLES = Object.fromEntries(NAV.flatMap(g => g.items));
 const P = {}; // pages
 
+/* ---------- 月次の「入力おわりました」 ---------- */
+const CLOSE_KINDS = [['inv', '棚卸'], ['cash', '小口現金出納帳']];
+const closeName = k => (CLOSE_KINDS.find(x => x[0] === k) || [k, k])[1];
+const closeOf = (k, ym) => Store.get(MK('close', ym), k) || null;
+const closeDone = (k, ym) => { const r = closeOf(k, ym); return !!(r && r.done); };
+function closeBar(k, ym) { // 各画面の上に出る「完了」の帯
+  const r = closeOf(k, ym);
+  if (r && r.done) return `<div class="note-box ok bar"><span class="sp"><b>${esc(ymLabel(ym))}の${esc(closeName(k))}は入力完了です</b><br><span class="small">${esc(r.by || '担当者の指定なし')}　${esc(r.at || '')}</span></span><button class="btn sm" data-act="closeUndo" data-k="${esc(k)}">完了を取り消す</button></div>`;
+  return `<div class="note-box bar"><span class="sp"><b>${esc(ymLabel(ym))}の${esc(closeName(k))}</b><br><span class="small">入力が終わったら、このボタンで「終わりました」と残せます</span></span><button class="btn primary sm" data-act="closeDone" data-k="${esc(k)}">入力おわりました</button></div>`;
+}
+A.closeDone = async el => {
+  const k = el.dataset.k; const d = new Date();
+  await Store.put(MK('close', S.month), k, { done: true, by: S.me ? staffName(S.me) : '', at: `${today()} ${pad(d.getHours())}:${pad(d.getMinutes())}` });
+  toast(`${ymLabel(S.month)}の${closeName(k)}を「完了」にしました`);
+};
+A.closeUndo = async el => { await Store.put(MK('close', S.month), el.dataset.k, null); toast('完了を取り消しました'); };
+A.closeGo = el => { const ym = el.dataset.ym; nav(el.dataset.k); S.month = ym; S.cache = {}; pruneSubs(); render(); };
 /* ---------- ホーム ---------- */
 P.home = {
-  keys: () => [MK('daily', curYM()), MK('resv', curYM()), MK('time', curYM()), MK('check', curYM()), MK('purch', curYM()), 'tmpl'],
+  keys: () => [MK('daily', curYM()), MK('resv', curYM()), MK('time', curYM()), MK('check', curYM()), MK('purch', curYM()), MK('close', curYM()), MK('close', addMonth(curYM(), -1)), 'tmpl'],
   render() {
     const set = SET(); const td = today(); const ym = curYM();
     if (Store.ready('settings') && !Store.get('settings', 'main')) return setupCard();
@@ -738,6 +759,9 @@ P.home = {
     const hcToday = todayDaily && haccp(todayDaily);
     if (hcToday && hcToday.filled && hcToday.ng.length) alerts.push(['warn', `今日の衛生記録に未確認あり：${hcToday.ng.join('・')}`, 'daily', '記入']);
     if (todayDaily && !hcToday.filled) alerts.push(['acc', '今日の衛生記録が未記入です（日報の中にあります）', 'daily', '記入']);
+    const pm = addMonth(ym, -1), openYM = set.openDate ? ymOf(set.openDate) : '';
+    const closeTodo = Number(td.slice(8, 10)) >= 5 && (!openYM || pm >= openYM)
+      ? CLOSE_KINDS.filter(([k]) => !closeDone(k, pm)).map(([k, l]) => `<div class="alert"><span class="pill acc">要確認</span><span class="sp">${esc(ymLabel(pm))}の${esc(l)}が「完了」になっていません</span><button class="btn sm" data-act="closeGo" data-k="${esc(k)}" data-ym="${esc(pm)}">開く</button></div>`).join('') : '';
     return `
     <div class="today"><span class="d">${dLong(td)}</span><span class="muted">${esc(set.shop || '')}</span></div>
     <div class="quick">
@@ -758,7 +782,7 @@ P.home = {
         ${resv.length ? `<div class="tw"><table class="tbl"><thead><tr><th>時間</th><th>お名前</th><th class="n">人数</th><th>内容</th><th>状態</th></tr></thead><tbody>${resv.map(r => `<tr class="click" data-act="resvEdit" data-id="${esc(r.id)}"><td>${esc(r.time)}</td><td>${esc(r.name)}</td><td class="n">${int(r.people)}</td><td class="wrap">${esc([r.course, r.allergy ? 'アレルギー:' + r.allergy : ''].filter(Boolean).join(' / '))}</td><td>${resvPill(r.status)}</td></tr>`).join('')}</tbody></table></div>` : emptyBox('今日の予約はありません', '')}
       </section>
       <section class="sec"><h3>お知らせ</h3>
-        <div class="alerts">${alerts.length ? alerts.map(([c, t, go, b]) => `<div class="alert"><span class="pill ${c}">要確認</span><span class="sp">${esc(t)}</span><button class="btn sm" data-go="${esc(go)}">${esc(b)}</button></div>`).join('') : '<div class="alert"><span class="pill ok">OK</span><span class="sp">確認が必要なことはありません</span></div>'}</div>
+        <div class="alerts">${closeTodo}${alerts.length ? alerts.map(([c, t, go, b]) => `<div class="alert"><span class="pill ${c}">要確認</span><span class="sp">${esc(t)}</span><button class="btn sm" data-go="${esc(go)}">${esc(b)}</button></div>`).join('') : (closeTodo ? '' : '<div class="alert"><span class="pill ok">OK</span><span class="sp">確認が必要なことはありません</span></div>')}</div>
       </section>
     </div>`;
   }
@@ -1404,13 +1428,14 @@ A.orderRecv = async el => {
 /* ---------- 棚卸 ---------- */
 P.inv = {
   month: true,
-  keys: () => [MK('inv', S.month), 'items'],
+  keys: () => [MK('inv', S.month), MK('close', S.month), 'items'],
   render() {
     const list = L('inv', S.month).sort((a, b) => String(a.cat || '').localeCompare(String(b.cat || ''), 'ja') || String(a.name).localeCompare(String(b.name), 'ja'));
     const tot = sum(list, r => num(r.qty) * num(r.price));
     const isDec = S.month.endsWith('-12');
     return `<div class="stats">${stat(ymLabel(S.month) + '末 棚卸高', yen(tot), isDec ? '＝この年の期末棚卸高（確定申告）' : '')}${stat('品目数', list.length)}${stat('入力済み', list.filter(r => r.qty !== '' && r.qty != null).length + ' / ' + list.length)}</div>
     ${isDec ? '<div class="note-box">12月末の棚卸高は、青色申告決算書の「期末商品（製品）棚卸高」になります。売れ残った食材・酒類を数えて入力してください。</div>' : ''}
+    ${closeBar('inv', S.month)}
     <div class="toolbar"><button class="btn primary" data-act="invCopy">前月からコピー</button><button class="btn" data-act="invFill">食材マスタから一覧を作る</button><button class="btn" data-act="invAdd">＋ 品目を追加</button><span class="sp"></span><button class="btn" data-act="invCSV">棚卸表CSV</button></div>
     ${list.length ? `<div class="tw"><table class="tbl"><thead><tr><th>分類</th><th>品目</th><th>単位</th><th class="n">単価（税抜）</th><th class="n">数量</th><th class="n">金額</th><th></th></tr></thead><tbody>${list.map(r => `<tr><td class="muted">${esc(r.cat || '')}</td><td><b>${esc(r.name)}</b></td><td>${esc(r.unit || '')}</td><td class="n">${num(r.price) % 1 ? '¥' + num(r.price).toFixed(2) : yen(r.price)}</td><td class="n" style="width:110px"><input id="iq_${esc(r.id)}" type="number" inputmode="decimal" value="${esc(r.qty ?? '')}" data-chg="invQty" data-id="${esc(r.id)}"></td><td class="n" id="ia_${esc(r.id)}">${yen(num(r.qty) * num(r.price))}</td><td><button class="btn sm" data-act="invDel" data-id="${esc(r.id)}">除く</button></td></tr>`).join('')}</tbody><tfoot><tr><td colspan="5">合計</td><td class="n">${yen(tot)}</td><td></td></tr></tfoot></table></div>`
         : emptyBox('この月の棚卸はまだありません', '前月と同じ品目で数えるなら「前月からコピー」、初めてなら「食材マスタから一覧を作る」', '<button class="btn primary" data-act="invCopy">前月からコピー</button> <button class="btn" data-act="invFill">食材マスタから一覧を作る</button>')}`;
@@ -1648,7 +1673,7 @@ const cashCrud = crud({ key: v => MK('cash', ymOf(v.date)), fields: F_CASH, titl
 A.cashAdd = (el) => cashCrud.add({ date: today(), kind: el && el.dataset && el.dataset.k === 'in' ? '入金' : '出金' });
 P.cash = {
   month: true,
-  keys: () => [MK('cash', S.month), MK('exp', S.month), MK('purch', S.month)],
+  keys: () => [MK('cash', S.month), MK('exp', S.month), MK('purch', S.month), MK('close', S.month)],
   render() {
     const ck = 'carry_' + S.month;
     if (S.cache[ck] === undefined) { S.cache[ck] = null; cashCarry(S.month).then(v => { S.cache[ck] = v; render(); }); }
@@ -1657,6 +1682,7 @@ P.cash = {
     const rows = lines.map(l => { bal += l.inAmt - l.outAmt; return `<tr class="click" data-act="cashEdit" data-src="${esc(l.src)}" data-id="${esc(l.rec.id)}"><td>${dLabel(l.date)}</td><td class="wrap">${esc(l.desc || '')}${l.src !== 'cash' ? ` <span class="pill">${l.src === 'exp' ? '経費帳' : '仕入帳'}から</span>` : ''}</td><td>${esc(l.account || '')}</td><td class="n">${l.inAmt ? yen(l.inAmt) : ''}</td><td class="n">${l.outAmt ? yen(l.outAmt) : ''}</td><td class="n"><b class="${bal < 0 ? 'pill bad' : ''}">${yen(bal)}</b></td><td>${receiptLink(l.rec)}</td></tr>`; }).join('');
     const tin = sum(lines, l => l.inAmt), tout = sum(lines, l => l.outAmt);
     return `<div class="stats">${stat('前月繰越', carry == null ? '計算中…' : yen(carry))}${stat('入金', yen(tin))}${stat('出金', yen(tout))}${stat('現在残高', carry == null ? '…' : yen(num(carry) + tin - tout), '手元の小口現金と一致するか確認')}</div>
+    ${closeBar('cash', S.month)}
     <div class="toolbar"><button class="btn primary" data-act="cashAdd">＋ 出金（支払）</button><button class="btn" data-act="cashAdd" data-k="in">＋ 入金（補充）</button><span class="sp"></span><button class="btn" data-act="cashCSV">出納帳CSV</button></div>
     ${lines.length ? `<div class="tw"><table class="tbl"><thead><tr><th>日付</th><th>摘要</th><th>勘定科目</th><th class="n">入金</th><th class="n">出金</th><th class="n">残高</th><th></th></tr></thead><tbody><tr class="dim"><td>${dLabel(S.month + '-01')}</td><td>前月より繰越</td><td></td><td></td><td></td><td class="n">${yen(carry)}</td><td></td></tr>${rows}</tbody><tfoot><tr><td colspan="3">合計</td><td class="n">${yen(tin)}</td><td class="n">${yen(tout)}</td><td class="n">${carry == null ? '' : yen(num(carry) + tin - tout)}</td><td></td></tr></tfoot></table></div>`
         : emptyBox(ymLabel(S.month) + 'の記帳はまだありません', '買い出しや備品の購入など、小口現金から支払ったものを記帳します', '<button class="btn primary" data-act="cashAdd">＋ 出金（支払）</button>')}
