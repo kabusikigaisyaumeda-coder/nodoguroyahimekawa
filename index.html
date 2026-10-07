@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-ElsIuC5opfyYTTPDucTqihjFCYW6Zre6n0xwHCAb2dc='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data: blob: https://tzmptqweehooidklvhpv.supabase.co; object-src https://tzmptqweehooidklvhpv.supabase.co; base-uri 'none'; form-action 'none'; manifest-src 'self'"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="のどぐろ家姫川"><meta name="theme-color" content="#23467A"></head><body>
+<html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-fv3glmiqzn1OR2rZn/EcQv9Osq42cPptbgBnNCj3e5w='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data: blob: https://tzmptqweehooidklvhpv.supabase.co; object-src https://tzmptqweehooidklvhpv.supabase.co; base-uri 'none'; form-action 'none'; manifest-src 'self'"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="のどぐろ家姫川"><meta name="theme-color" content="#23467A"></head><body>
 <title>のどぐろ家姫川</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -189,6 +189,9 @@ table.tbl{border-collapse:collapse;width:100%;font-size:14px}
 .chips input{accent-color:var(--accent)}
 .chips label:has(input:checked){background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:700}
 .lines{grid-column:1/-1;display:grid;gap:6px}
+.lines .ln2{display:grid;gap:6px;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--surface)}
+.lines .ln2 select,.lines .ln2 input,.lines .ln2 textarea{padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:var(--surface);min-height:38px;width:100%;font-size:15px}
+.lines .ln2 textarea{resize:vertical;line-height:1.5}
 .lines .ln{display:grid;grid-template-columns:minmax(0,1fr) 90px 60px 90px 34px;gap:6px;align-items:center}
 .lines .ln input,.lines .ln select{padding:6px 8px;border:1px solid var(--line);border-radius:7px;background:var(--surface);min-height:36px;width:100%}
 .lines .ln .n{text-align:right;font-variant-numeric:tabular-nums;font-size:13px}
@@ -217,7 +220,10 @@ table.tbl{border-collapse:collapse;width:100%;font-size:14px}
 }
 @media (max-width:560px){
   .modal .body{grid-template-columns:1fr}
-  .lines .ln{grid-template-columns:minmax(0,1fr) 70px 70px 30px}
+  .lines .ln2{display:grid;gap:6px;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--surface)}
+.lines .ln2 select,.lines .ln2 input,.lines .ln2 textarea{padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:var(--surface);min-height:38px;width:100%;font-size:15px}
+.lines .ln2 textarea{resize:vertical;line-height:1.5}
+.lines .ln{grid-template-columns:minmax(0,1fr) 70px 70px 30px}
   .lines .ln .u{display:none}
   .today .d{font-size:24px}
 }
@@ -282,7 +288,7 @@ const DENOMS = [10000, 5000, 1000, 500, 100, 50, 10, 5, 1];
 const WEATHER = ['晴れ', '曇り', '雨', '雪', '晴れ時々曇り', '曇り時々雨'];
 // 定額法の償却率（平成19年4月1日以後取得）
 const SL_RATE = { 2: .5, 3: .334, 4: .25, 5: .2, 6: .167, 7: .143, 8: .125, 9: .112, 10: .1, 11: .091, 12: .084, 13: .077, 14: .072, 15: .067, 16: .063, 17: .059, 18: .056, 19: .053, 20: .05, 22: .046, 24: .042, 25: .04, 30: .034, 34: .03, 39: .026, 47: .022 };
-const DEF_SET = { shop: '', trade: '', owner: '', addr: '', tel: '', invoiceNo: '', openDate: '', float: 30000, cashStart: 0, cashStartMonth: '', invStart: 0, weekLimit: 40, payday: 25, monthlyHours: 173 };
+const DEF_SET = { shop: '', trade: '', owner: '', addr: '', tel: '', invoiceNo: '', openDate: '', float: 30000, cashStart: 0, cashStartMonth: '', invStart: 0, weekLimit: 40, payday: 25, monthlyHours: 173, reportMail: 'kabusikigaisya.umeda@gmail.com' };
 const DEF_TMPL = [
   { name: '開店前', order: 1, items: ['ガス・換気扇ON', '冷蔵庫・冷凍庫の温度確認', '手洗い・アルコール設置', 'スタッフの体調確認', '客席・トイレ清掃', 'レジ釣銭の準備', '看板・のれんを出す'] },
   { name: '閉店後', order: 2, items: ['ガス元栓を閉める', 'フライヤー・コンロの火の確認', '冷蔵庫の扉を確認', '生ごみ・ごみ出し', '床・厨房清掃', 'レジ締め', '日報を書く', '電気・エアコンOFF', '施錠'] },
@@ -818,6 +824,59 @@ function haccp(r) { // 日報1件の衛生記録の状態
   for (const x of tempList(r)) if (x.t >= FEVER) ng.push(`${x.name} ${x.t}℃`);
   return { filled, ng, pill: !filled ? '<span class="pill">未記入</span>' : ng.length ? `<span class="pill warn">要確認</span>` : '<span class="pill ok">OK</span>' };
 }
+/* ---------- 日報をメールで送る ---------- */
+const mLine = (label, v, unit = '円') => (v === '' || v == null || !isFinite(num(v))) ? '' : `${label}：${unit === '円' ? int(num(v)) : num(v)}${unit}\n`;
+function dailyMailText(v, lines, orders) {
+  const s = SET(); const shop = s.shop || '当店';
+  const tot = dailyTotal(v); const h = haccp(v);
+  const pur = (lines || []).filter(l => l.supplier && num(l.amount));
+  const ord = (orders || []).filter(o => o.supplier && String(o.note || '').trim());
+  const tps = tempList(v);
+  let t = `${shop}　日報\n${dLong(v.date)}${v.weather ? '（' + v.weather + '）' : ''}\n記入者：${v.by || '—'}\n`;
+  t += `\n■ 売上　合計 ${int(tot)}円\n`;
+  t += mLine('　現金（ランチ）', v.cashLunch) + mLine('　現金（ディナー）', v.cashDinner);
+  t += mLine('　現金 計', v.cash) + mLine('　カード', v.card) + mLine('　QR・電子マネー', v.qr) + mLine('　その他（掛売等）', v.other);
+  t += mLine('　うちテイクアウト(8%)', v.takeout);
+  t += `\n■ 客数　合計 ${int(num(v.guests))}人`;
+  if (v.guestsLunch !== '' && v.guestsLunch != null || v.guestsDinner !== '' && v.guestsDinner != null)
+    t += `（ランチ ${int(num(v.guestsLunch))}人／ディナー ${int(num(v.guestsDinner))}人）`;
+  t += (v.groups !== '' && v.groups != null ? `　${int(num(v.groups))}組` : '') + '\n';
+  if (tot > 0 && num(v.guests) > 0) t += `客単価：${int(Math.round(tot / num(v.guests)))}円\n`;
+  t += `\n■ 本日の仕入　合計 ${int(sum(pur, l => num(l.amount)))}円\n`;
+  t += pur.length ? pur.map(l => `　・${supName(l.supplier)}　${int(num(l.amount))}円（${num(l.tax) === 10 ? '10%' : '8%'}・${l.pay || '掛'}）\n`).join('') : '　なし\n';
+  t += `\n■ 本日の発注\n`;
+  t += ord.length ? ord.map(o => `　【${supName(o.supplier)}】${o.due ? '納品 ' + o.due : ''}\n` +
+    String(o.note).trim().split('\n').map(x => '　　' + x.trim()).join('\n') + '\n').join('') : '　なし\n';
+  t += `\n■ 衛生管理（HACCP）　${!h.filled ? '未記入' : h.ng.length ? '要確認' : 'OK'}\n`;
+  t += mLine('　冷蔵庫', v.hcFridge, '℃') + mLine('　冷凍庫', v.hcFreezer, '℃');
+  t += `　確認済み：${HC_CHECKS.filter(([k]) => v[k]).map(([, l]) => l).join('／') || 'なし'}\n`;
+  const miss = HC_CHECKS.filter(([k]) => !v[k]).map(([, l]) => l);
+  if (miss.length) t += `　未確認：${miss.join('／')}\n`;
+  if (tps.length) t += `　出勤者の体温：${tps.map(x => `${x.name} ${x.t}℃${x.t >= FEVER ? '（要注意）' : ''}`).join('／')}\n`;
+  if (v.hcNote) t += `　異常と対応：${v.hcNote}\n`;
+  if (v.note) t += `\n■ 特記事項\n${String(v.note).split('\n').map(x => '　' + x).join('\n')}\n`;
+  return t;
+}
+function sendDailyMail(v, lines, orders) {
+  const s = SET();
+  const to = String(s.reportMail || (typeof SHOP_EMAIL === 'string' ? SHOP_EMAIL : '')).trim();
+  if (!to) { toast('送信先のメールアドレスが未設定です（設定→日報の送信先メール）'); return; }
+  const body = dailyMailText(v, lines, orders);
+  const subj = `日報 ${v.date} ${s.shop || ''} 売上${int(dailyTotal(v))}円`.replace(/\s+/g, ' ').trim();
+  let copied = false;
+  try { const pr = navigator.clipboard && navigator.clipboard.writeText(body); if (pr) { copied = true; pr.catch(() => { copied = false; }); } } catch (e) { /* コピーできなくても続行 */ }
+  const a = document.createElement('a');
+  a.href = `mailto:${to}?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(body)}`;
+  a.target = '_blank'; a.rel = 'noopener'; a.style.display = 'none';
+  document.body.appendChild(a); a.click(); setTimeout(() => a.remove(), 500);
+  setTimeout(() => toast(`${to} へのメールを作成しました${copied ? '（本文はコピー済み）' : ''}`), 900);
+}
+A.dailyMailNow = () => {
+  const v = readForm(F_DAILY); v.hcTemps = readTemps();
+  const l = v.cashLunch, d2 = v.cashDinner; v.cash = num(l) + num(d2);
+  v.guests = num(v.guestsLunch) + num(v.guestsDinner);
+  sendDailyMail(v, dailyLines, dailyOrders);
+};
 /* 日報の中の「今日の仕入」。保存すると仕入帳に記帳される */
 let dailyLines = [], dailyOrders = [];
 /* 出勤者の体温 */
@@ -828,11 +887,14 @@ const tempsHTML = v => {
 };
 const readTemps = () => { const o = {}; for (const el of $$('[data-temp]')) if (el.value !== '') o[el.dataset.temp] = num(el.value); return o; };
 /* 今日の発注（保存すると発注履歴に残る） */
-const doRow = (l, i) => `<div class="ln" data-i="${esc(i)}">
-  <select data-chg="doSet" data-k="supplier" data-i="${esc(i)}" aria-label="発注先">${supOpts(l.supplier, '発注先を選ぶ')}</select>
-  <input value="${esc(l.note ?? '')}" data-inp="doSet" data-k="note" data-i="${esc(i)}" placeholder="発注内容（例：のどぐろ 5尾、甘エビ 2kg）" aria-label="発注内容" style="grid-column:span 2">
-  <input type="date" value="${esc(l.due ?? '')}" data-chg="doSet" data-k="due" data-i="${esc(i)}" aria-label="納品予定日">
-  <button type="button" class="btn sm" data-act="doDel" data-i="${esc(i)}" aria-label="この行を消す">×</button></div>`;
+const doRow = (l, i) => `<div class="ln2" data-i="${esc(i)}">
+  <div class="row" style="flex-wrap:nowrap;gap:6px">
+    <select data-chg="doSet" data-k="supplier" data-i="${esc(i)}" aria-label="発注先" style="flex:1;min-width:0">${supOpts(l.supplier, '発注先を選ぶ')}</select>
+    <input type="date" value="${esc(l.due ?? '')}" data-chg="doSet" data-k="due" data-i="${esc(i)}" aria-label="納品予定日" style="width:9.5em">
+    <button type="button" class="btn sm" data-act="doDel" data-i="${esc(i)}" aria-label="この行を消す">×</button>
+  </div>
+  <textarea data-inp="doSet" data-k="note" data-i="${esc(i)}" rows="3" placeholder="発注内容（例：のどぐろ 5尾、甘エビ 2kg、生ビール樽 2本）" aria-label="発注内容">${esc(l.note ?? '')}</textarea>
+</div>`;
 function drawDO() {
   const box = $('#dorders'); if (!box) return;
   box.innerHTML = dailyOrders.map(doRow).join('') + `<div class="row"><button type="button" class="btn sm" data-act="doAdd">＋ 発注先を追加</button></div>`;
@@ -877,7 +939,12 @@ function dailyForm(date) {
       <div id="dlines" class="lines"></div>
       <small class="hint">${suppliers().length ? '食品は8%、酒類・包材は10%です。金額は税込で入力してください。' : '先に「取引先」で仕入先を登録してください。'}</small></div>
       <div class="lines"><span class="small muted" style="font-weight:700;border-top:1px solid var(--line);padding-top:12px">今日の発注（保存すると「発注」画面の履歴に残ります）</span>
-      <div id="dorders" class="lines"></div></div>`,
+      <div id="dorders" class="lines"></div></div>
+      <div class="row" style="border-top:1px solid var(--line);padding-top:12px">
+        <button type="button" class="btn sm" data-act="dailyMailNow">メールだけ作る（保存しない）</button>
+        <span class="small muted">「保存して送信」で、保存のあとに ${esc(String(SET().reportMail || '送信先未設定'))} 宛のメールが作られます</span>
+      </div>`,
+    saveLabel: '保存して送信',
     onSave: async v => {
       const l = v.cashLunch, d2 = v.cashDinner;
       v.cash = (l === '' || l == null) && (d2 === '' || d2 == null) ? (rec ? num(rec.cash) : '') : num(l) + num(d2); // 現金売上の合計
@@ -910,6 +977,7 @@ function dailyForm(date) {
       }
       for (const o of beforeO) if (!dailyOrders.some(l => l.id === o.id)) await Store.put(oOld, o.id, null);
       toast('日報を保存しました' + (n || m ? `（仕入 ${n}件・発注 ${m}件を記帳）` : ''));
+      sendDailyMail(v, dailyLines, dailyOrders);
     },
     onDelete: rec ? async () => { if (!confirmDel()) return; await Store.put(MK('daily', ym), date, null); closeModal(); toast('削除しました（仕入帳の記帳は残ります）'); } : null,
   });
@@ -1799,6 +1867,7 @@ const F_SET = [
   { k: 'float', label: 'レジ釣銭準備金', type: 'money' }, { k: 'cashStart', label: '小口現金の開始残高', type: 'money' },
   { k: 'cashStartMonth', label: '小口現金の開始月', type: 'month' }, { k: 'invStart', label: '期首商品棚卸高（開業年）', type: 'money' },
   { k: 'weekLimit', label: '週の法定労働時間', type: 'select', opts: [{ v: 40, l: '40時間' }, { v: 44, l: '44時間（常時10人未満の飲食店＝特例措置対象事業場）' }] },
+  { k: 'reportMail', label: '日報の送信先メール', type: 'email', hint: '「保存して送信」で、この宛先のメールが作成されます' },
   { k: 'payday', label: '給料日（翌月の日付）', type: 'num' }, { k: 'monthlyHours', label: '月給者の月所定労働時間（標準）', type: 'num' },
 ];
 P.settings = {
