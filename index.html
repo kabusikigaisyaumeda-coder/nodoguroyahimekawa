@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-RadsDmUlNsNRUWUVKZQOnpcS8KPYBRizCAoL3JeNIjo='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data: blob: https://tzmptqweehooidklvhpv.supabase.co; object-src https://tzmptqweehooidklvhpv.supabase.co; base-uri 'none'; form-action 'none'; manifest-src 'self'"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="のどぐろ家姫川"><meta name="theme-color" content="#23467A"></head><body>
+<html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-iftyZaUGAf6d7/IcXXMi1rtr1A1odSqvcpXICVzUNmU='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data: blob: https://tzmptqweehooidklvhpv.supabase.co; object-src https://tzmptqweehooidklvhpv.supabase.co; base-uri 'none'; form-action 'none'; manifest-src 'self'"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="のどぐろ家姫川"><meta name="theme-color" content="#23467A"></head><body>
 <title>のどぐろ家姫川</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -494,7 +494,7 @@ function confirmDel() { // 2回押しで削除（ダイアログを使わない�
 /* ---- ファイル保存（CSV/HTML） ---- */
 const csvCell = v => { let s = String(v ?? ''); if (typeof v !== 'number' && /^[=+\-@\t\r]/.test(s)) s = "'" + s; /* 表計算ソフトの数式実行を防ぐ */ return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
 const toCSV = rows => '﻿' + rows.map(r => r.map(csvCell).join(',')).join('\r\n');
-const FN_MAP = [['衛生管理記録', 'hygiene-log'], ['小口現金出納帳', 'petty-cash'], ['固定資産台帳', 'fixed-assets'], ['労働者名簿', 'staff-register'], ['賃金台帳', 'wage-ledger'], ['アレルゲン表', 'allergens'], ['給与明細', 'payslip'], ['月別集計', 'monthly-summary'], ['バックアップ', '_backup'], ['のどぐろ家姫川', 'nodoguro-himekawa'], ['シフト表', 'shift'], ['仕訳帳', 'journal'], ['仕入帳', 'purchases'], ['経費帳', 'expenses'], ['出勤簿', 'attendance'], ['棚卸表', 'inventory'], ['原価表', 'recipe-costs'], ['メニュー', 'menu'], ['日報', 'daily-report']];
+const FN_MAP = [['ウメダ在庫一覧', 'umeda-stock-list'], ['衛生管理記録', 'hygiene-log'], ['小口現金出納帳', 'petty-cash'], ['固定資産台帳', 'fixed-assets'], ['労働者名簿', 'staff-register'], ['賃金台帳', 'wage-ledger'], ['アレルゲン表', 'allergens'], ['給与明細', 'payslip'], ['月別集計', 'monthly-summary'], ['バックアップ', '_backup'], ['のどぐろ家姫川', 'nodoguro-himekawa'], ['シフト表', 'shift'], ['仕訳帳', 'journal'], ['仕入帳', 'purchases'], ['経費帳', 'expenses'], ['出勤簿', 'attendance'], ['棚卸表', 'inventory'], ['原価表', 'recipe-costs'], ['メニュー', 'menu'], ['日報', 'daily-report']];
 function asciiName(fn) { // 一部のブラウザは日本語のファイル名を無視するため英数字に置き換える
   let s = fn; for (const [j, e] of FN_MAP) s = s.split(j).join(e);
   const m = s.match(/\.[a-z0-9]+$/i); const ext = m ? m[0] : ''; let base = ext ? s.slice(0, -ext.length) : s;
@@ -696,6 +696,7 @@ const NAV = [
   { g: '仕入・在庫', items: [['purch', '仕入帳'], ['order', '発注'], ['inv', '棚卸'], ['waste', '廃棄ロス'], ['items', '食材マスタ'], ['suppliers', '取引先']] },
   { g: 'メニュー', items: [['recipes', 'レシピ・原価'], ['allergen', 'アレルゲン表'], ['menu', 'メニュー制作']] },
   { g: '経理・申告', items: [['cash', '小口現金出納帳'], ['exp', '経費帳'], ['arap', '売掛・買掛'], ['fixed', '固定資産台帳'], ['annual', '年間集計・CSV']] },
+  { g: '卸・販売', items: [['umeda', 'ウメダ在庫一覧']] },
   { g: '', items: [['settings', '設定・バックアップ']] },
 ];
 const TITLES = Object.fromEntries(NAV.flatMap(g => g.items));
@@ -1919,5 +1920,90 @@ async function start() {
   render();
 }
 if (SB.sess) start(); else loginScreen();
+/* ---------- ウメダ在庫一覧（お客様配布・FAX用） ---------- */
+const UM_CATS = ['丸干し', '開き', '煮焼用', '唐揚・フライ用', 'その他'];
+const DEF_UM = { company: '株式会社ウメダ', addr: '', tel: '', fax: '', title: 'お客様各位', asof: '', note: '', orderCol: true };
+const umSet = () => ({ ...DEF_UM, ...(Store.get('settings', 'umeda') || {}) });
+const umItems = () => Store.list('umeda').sort((a, b) =>
+  (UM_CATS.indexOf(a.cat || 'その他') - UM_CATS.indexOf(b.cat || 'その他')) || (num(a.order) - num(b.order)) || String(a.name).localeCompare(String(b.name), 'ja'));
+const F_UM = [
+  { k: 'cat', label: '分類', type: 'select', opts: UM_CATS, def: '丸干し' },
+  { k: 'name', label: '商品名', req: true, full: true, ph: '例：めぎす丸干し　中' },
+  { k: 'origin', label: '産地', list: ['能生', '糸魚川', '新潟', '石川', '富山', '山形', '鳥取', '三重', '山口', '韓国', '国産'] },
+  { k: 'unit', label: '注文単位', list: ['1尾', '3尾', '1枚', '1切', '1個', '1p', '1袋', '1箱'], def: '1枚' },
+  { k: 'price', label: '価格（円）', type: 'money' },
+  { k: 'qty', label: '供給数量', type: 'num' },
+  { k: 'note', label: '備考', full: true, ph: '例：250g前後' },
+  { k: 'order', label: '表示順', type: 'num' },
+  { k: 'off', label: '掲載', type: 'check', cl: '今回は載せない（品切れ等）' },
+];
+const umCrud = crud({ key: () => 'umeda', fields: F_UM, title: '在庫一覧の商品', defaults: { cat: '丸干し', unit: '1枚' } });
+A.umAdd = () => umCrud.add({ order: (umItems().length + 1) * 10 });
+A.umEdit = el => umCrud.edit(Store.get('umeda', el.dataset.id));
+CHG.umQty = async el => { const r = Store.get('umeda', el.dataset.id); if (!r) return; await Store.put('umeda', r.id, { ...r, qty: el.value === '' ? '' : num(el.value) }); };
+CHG.umHead = async el => { const v = { ...umSet() }; delete v.id; v[el.dataset.k] = el.type === 'checkbox' ? el.checked : el.value; await Store.put('settings', 'umeda', v); };
+P.umeda = {
+  keys: () => ['umeda', 'settings'],
+  render() {
+    const s = umSet(); const list = umItems(); const live = list.filter(i => !i.off);
+    const byCat = groupBy(live, i => i.cat || 'その他');
+    return `<div class="stats">${stat('掲載商品', live.length + '品', list.length - live.length ? `非掲載 ${list.length - live.length}品` : '')}${stat('供給数量の合計', int(sum(live, i => i.qty)))}${stat('分類', Object.keys(byCat).length)}</div>
+    <div class="card" style="margin-bottom:20px"><h3>表の見出し（印刷に出ます）</h3>
+      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:10px">
+        <label class="f"><span>会社名</span><input id="um_company" value="${esc(s.company)}" data-chg="umHead" data-k="company"></label>
+        <label class="f"><span>住所</span><input id="um_addr" value="${esc(s.addr)}" data-chg="umHead" data-k="addr" placeholder="新潟県糸魚川市上刈…"></label>
+        <label class="f"><span>電話</span><input id="um_tel" value="${esc(s.tel)}" data-chg="umHead" data-k="tel" placeholder="025-553-0890"></label>
+        <label class="f"><span>FAX</span><input id="um_fax" value="${esc(s.fax)}" data-chg="umHead" data-k="fax" placeholder="025-553-9482"></label>
+        <label class="f"><span>宛名</span><input id="um_title" value="${esc(s.title)}" data-chg="umHead" data-k="title"></label>
+        <label class="f"><span>「◯月◯日現在」の日付</span><input id="um_asof" type="date" value="${esc(s.asof || today())}" data-chg="umHead" data-k="asof"></label>
+        <label class="f full"><span>下部の一言（任意）</span><input id="um_note" value="${esc(s.note)}" data-chg="umHead" data-k="note" placeholder="例：数量は変動します。お早めにご注文ください。"></label>
+        <label class="field-inline"><input type="checkbox" id="um_oc" data-chg="umHead" data-k="orderCol"${s.orderCol ? ' checked' : ''}> 注文数の記入欄を付ける（FAX返信用）</label>
+      </div>
+    </div>
+    <div class="toolbar"><button class="btn primary" data-act="umAdd">＋ 商品を追加</button><span class="sp"></span><button class="btn" data-act="umCSV">CSV保存</button><button class="btn primary" data-act="umPrint">A4の印刷用に保存</button></div>
+    ${list.length ? `<div class="tw"><table class="tbl"><thead><tr><th>分類</th><th>商品名</th><th>産地</th><th>注文単位</th><th class="n">価格</th><th class="n">供給数量</th><th>備考</th><th></th></tr></thead><tbody>${UM_CATS.filter(c => byCat[c] || list.some(i => (i.cat || 'その他') === c)).map(c => `
+      <tr><td colspan="8" style="background:var(--surface2);font-weight:700">${esc(c)}</td></tr>
+      ${list.filter(i => (i.cat || 'その他') === c).map(i => `<tr class="${i.off ? 'dim' : ''}"><td></td><td class="click" data-act="umEdit" data-id="${esc(i.id)}"><b>${esc(i.name)}</b>${i.off ? ' <span class="pill">非掲載</span>' : ''}</td><td>${esc(i.origin || '')}</td><td>${esc(i.unit || '')}</td><td class="n">${i.price !== '' && i.price != null ? int(i.price) : ''}</td><td class="n" style="width:110px"><input id="uq_${esc(i.id)}" type="number" inputmode="numeric" value="${esc(i.qty ?? '')}" data-chg="umQty" data-id="${esc(i.id)}"></td><td class="wrap small">${esc(i.note || '')}</td><td><button class="btn sm" data-act="umEdit" data-id="${esc(i.id)}">編集</button></td></tr>`).join('')}`).join('')}</tbody></table></div>
+    <p class="hint">供給数量はこの表で直接書き換えられます。商品名や価格を直すときは「編集」から。印刷用のファイルはブラウザで開いてA4で印刷してください。</p>`
+        : emptyBox('商品がまだありません', 'Excelの在庫表と同じ形式で、お客様にお配りする一覧を作れます', '<button class="btn primary" data-act="umAdd">＋ 商品を追加</button>')}`;
+  }
+};
+A.umCSV = () => saveFile(`ウメダ在庫一覧_${today()}.csv`, toCSV([['分類', '商品名', '産地', '注文単位', '価格', '供給数量', '備考', '掲載'],
+  ...umItems().map(i => [i.cat, i.name, i.origin, i.unit, num(i.price), num(i.qty), i.note, i.off ? '非掲載' : '掲載'])]));
+A.umPrint = () => {
+  const s = umSet(); const list = umItems().filter(i => !i.off);
+  const d = s.asof || today();
+  const asof = `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}日現在`;
+  const byCat = groupBy(list, i => i.cat || 'その他');
+  const cols = 6 + (s.orderCol ? 1 : 0);
+  const rows = UM_CATS.filter(c => byCat[c]).map(c => `<tr class="cat"><td colspan="${cols}">${esc(c)}</td></tr>` +
+    byCat[c].map(i => `<tr><td class="nm">${esc(i.name)}</td><td class="c">${esc(i.origin || '')}</td><td class="c">${esc(i.unit || '')}</td><td class="n">${i.price !== '' && i.price != null ? int(i.price) : ''}</td><td class="n">${i.qty !== '' && i.qty != null ? int(i.qty) : ''}</td><td>${esc(i.note || '')}</td>${s.orderCol ? '<td></td>' : ''}</tr>`).join('')).join('');
+  const html = `<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>${esc(s.company)} 在庫一覧 ${d}</title><style>
+  @page{size:A4 portrait;margin:12mm 10mm}
+  *{box-sizing:border-box}
+  body{font-family:"BIZ UDPGothic","Hiragino Sans","Yu Gothic","Meiryo",sans-serif;color:#000;margin:0;font-size:10.5pt}
+  .head{display:flex;justify-content:flex-end;font-size:9.5pt;line-height:1.5;margin-bottom:2mm}
+  .head div{text-align:left}
+  .ttl{display:flex;align-items:flex-end;justify-content:space-between;margin:2mm 0 1mm}
+  .ttl h1{font-size:17pt;margin:0;padding:0 14mm 1mm;border-bottom:1.2pt solid #000;letter-spacing:.3em}
+  .ttl .deli{font-size:11pt;white-space:nowrap}
+  .asof{font-size:9.5pt;margin-bottom:1mm}
+  table{border-collapse:collapse;width:100%}
+  th,td{border:.8pt solid #000;padding:1.1mm 1.6mm;font-size:10pt;line-height:1.25}
+  th{background:#f0f0f0;text-align:center;font-weight:700}
+  td.c{text-align:center}td.n{text-align:right;font-variant-numeric:tabular-nums}
+  td.nm{padding-left:2.5mm}
+  tr.cat td{text-align:center;font-weight:700;letter-spacing:.4em;background:#fafafa}
+  tr{break-inside:avoid}
+  .foot{margin-top:3mm;font-size:9pt;display:flex;justify-content:space-between}
+  </style></head><body>
+  <div class="head"><div>${esc(s.addr)}<br>電話　${esc(s.tel)}<br>fax　　${esc(s.fax)}</div></div>
+  <div class="ttl"><span></span><h1>${esc(s.title)}</h1><span class="deli">納品日　　　月　　　日</span></div>
+  <div class="asof">${esc(asof)}</div>
+  <table><thead><tr><th style="width:34%">商品名</th><th style="width:9%">産地</th><th style="width:10%">注文単位</th><th style="width:9%">価格</th><th style="width:11%">供給数量</th><th style="width:${s.orderCol ? 17 : 27}%">備考</th>${s.orderCol ? '<th style="width:10%">ご注文数</th>' : ''}</tr></thead><tbody>${rows}</tbody></table>
+  <div class="foot"><span>${esc(s.note || '')}</span><span>${esc(s.company)}</span></div>
+  </body></html>`;
+  saveFile(`ウメダ在庫一覧_${d}.html`, html);
+};
 </script>
 </body></html>
