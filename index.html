@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-Q78e5xZpzo/iGBSLFVJEeuPAtpZuY3IKugXd7nr9aQ8='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://hvbplhfmmjkzsqqflrjy.supabase.co; img-src 'self' data: blob: https://hvbplhfmmjkzsqqflrjy.supabase.co; object-src https://hvbplhfmmjkzsqqflrjy.supabase.co; base-uri 'none'; form-action 'none'; manifest-src 'self'"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="のどぐろ家姫川"><meta name="theme-color" content="#23467A"></head><body>
+<html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-RadsDmUlNsNRUWUVKZQOnpcS8KPYBRizCAoL3JeNIjo='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data: blob: https://tzmptqweehooidklvhpv.supabase.co; object-src https://tzmptqweehooidklvhpv.supabase.co; base-uri 'none'; form-action 'none'; manifest-src 'self'"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="のどぐろ家姫川"><meta name="theme-color" content="#23467A"></head><body>
 <title>のどぐろ家姫川</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -143,13 +143,6 @@ table.tbl{border-collapse:collapse;width:100%;font-size:14px}
 .pc .acts .btn{min-height:46px}
 .pc.working{border-color:var(--ok)}
 .pc.onbreak{border-color:var(--warn)}
-
-/* register */
-.denom{display:grid;grid-template-columns:auto 1fr auto;gap:6px 12px;align-items:center}
-.denom label{font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
-.denom input{padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);text-align:right;font-size:16px;width:100%;min-height:42px}
-.denom .sub{font-variant-numeric:tabular-nums;color:var(--muted);text-align:right;min-width:6.5em}
-.stamp{display:inline-grid;place-items:center;width:64px;height:64px;border-radius:50%;border:2.5px solid var(--shu);color:var(--shu);font-family:var(--f-disp);font-weight:800;font-size:14px;transform:rotate(-8deg);line-height:1.15;text-align:center}
 
 /* checklist */
 .chk{display:grid;gap:6px}
@@ -347,7 +340,12 @@ const Store = {
     this.emit();
     try {
       const res = await SB.req('/rest/v1/records?on_conflict=bucket,id', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=representation' }, body: [{ bucket: key, id, data: clean, deleted: !clean }] });
-      if (res && res[0] && (!this.lastTs || res[0].updated_at > this.lastTs)) this.lastTs = res[0].updated_at;
+      if (res && res[0]) {
+        if (!this.lastTs || res[0].updated_at > this.lastTs) this.lastTs = res[0].updated_at;
+        // 読み込みが同時に走って上書きされても、書いた内容が消えないように反映し直す
+        this.apply(key, [{ id, data: clean, deleted: !clean, updated_at: res[0].updated_at }]);
+        this.emit();
+      }
       return true;
     } catch (e) { toast('保存できませんでした：' + e.message); this.load(key); return false; }
   },
@@ -410,6 +408,7 @@ function fieldHTML(f, v) {
   const id = 'f_' + f.k;
   const val = v[f.k] ?? f.def ?? '';
   const full = f.full || f.type === 'textarea' || f.type === 'chips' ? ' full' : '';
+  if (f.type === 'head') return `<div class="f full" style="margin-top:6px;border-top:1px solid var(--line);padding-top:12px"><b style="font-size:14px">${esc(f.label)}</b>${f.hint ? `<small class="hint">${esc(f.hint)}</small>` : ''}</div>`;
   let inner = '';
   switch (f.type) {
     case 'select': inner = `<select id="${esc(id)}" name="${f.k}">${opts(typeof f.opts === 'function' ? f.opts() : f.opts, val, f.blank)}</select>`; break;
@@ -495,7 +494,7 @@ function confirmDel() { // 2回押しで削除（ダイアログを使わない�
 /* ---- ファイル保存（CSV/HTML） ---- */
 const csvCell = v => { let s = String(v ?? ''); if (typeof v !== 'number' && /^[=+\-@\t\r]/.test(s)) s = "'" + s; /* 表計算ソフトの数式実行を防ぐ */ return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
 const toCSV = rows => '﻿' + rows.map(r => r.map(csvCell).join(',')).join('\r\n');
-const FN_MAP = [['小口現金出納帳', 'petty-cash'], ['固定資産台帳', 'fixed-assets'], ['労働者名簿', 'staff-register'], ['賃金台帳', 'wage-ledger'], ['アレルゲン表', 'allergens'], ['給与明細', 'payslip'], ['月別集計', 'monthly-summary'], ['バックアップ', '_backup'], ['のどぐろ家姫川', 'nodoguro-himekawa'], ['シフト表', 'shift'], ['仕訳帳', 'journal'], ['仕入帳', 'purchases'], ['経費帳', 'expenses'], ['出勤簿', 'attendance'], ['棚卸表', 'inventory'], ['原価表', 'recipe-costs'], ['メニュー', 'menu'], ['日報', 'daily-report']];
+const FN_MAP = [['衛生管理記録', 'hygiene-log'], ['小口現金出納帳', 'petty-cash'], ['固定資産台帳', 'fixed-assets'], ['労働者名簿', 'staff-register'], ['賃金台帳', 'wage-ledger'], ['アレルゲン表', 'allergens'], ['給与明細', 'payslip'], ['月別集計', 'monthly-summary'], ['バックアップ', '_backup'], ['のどぐろ家姫川', 'nodoguro-himekawa'], ['シフト表', 'shift'], ['仕訳帳', 'journal'], ['仕入帳', 'purchases'], ['経費帳', 'expenses'], ['出勤簿', 'attendance'], ['棚卸表', 'inventory'], ['原価表', 'recipe-costs'], ['メニュー', 'menu'], ['日報', 'daily-report']];
 function asciiName(fn) { // 一部のブラウザは日本語のファイル名を無視するため英数字に置き換える
   let s = fn; for (const [j, e] of FN_MAP) s = s.split(j).join(e);
   const m = s.match(/\.[a-z0-9]+$/i); const ext = m ? m[0] : ''; let base = ext ? s.slice(0, -ext.length) : s;
@@ -522,8 +521,9 @@ function printDoc(title, bodyHTML, css = '') {
   .meta{font-size:9pt;color:#444;margin-bottom:4mm}${css}</style></head><body>${bodyHTML}</body></html>`;
 }
 /* ===================== Supabase 接続（ライブラリ不使用・REST直接） ===================== */
-const SB_URL = 'https://hvbplhfmmjkzsqqflrjy.supabase.co';
-const SB_KEY = 'sb_publishable_Upy7LrIY_P37kAOiqjRBAg_SMLNOm2p';
+const SB_URL = 'https://tzmptqweehooidklvhpv.supabase.co';
+const SB_KEY = 'sb_publishable_qMD1YdoblcTm0rEw525L0w__TdH8q1P';
+const SHOP_EMAIL = 'kabusikigaisya.umeda@gmail.com'; // お店共通アカウント（画面ではパスワードだけ入力）
 const SB = {
   sess: lsGet('rk.sb.session', null),
   saveSess(s) { this.sess = s; lsSet('rk.sb.session', s); },
@@ -691,7 +691,7 @@ function deprSchedule(a, year) {
 /* ===================== 画面定義 ===================== */
 const NAV = [
   { g: '', items: [['home', 'ホーム']] },
-  { g: '運営', items: [['daily', '日報'], ['regi', 'レジ締め'], ['check', 'チェックリスト'], ['prep', '仕込みリスト'], ['resv', '予約台帳']] },
+  { g: '運営', items: [['daily', '日報'], ['check', 'チェックリスト'], ['prep', '仕込みリスト'], ['resv', '予約台帳']] },
   { g: '労務', items: [['time', 'タイムカード'], ['shift', 'シフト表'], ['pay', '給与・賃金台帳'], ['staff', 'スタッフ名簿']] },
   { g: '仕入・在庫', items: [['purch', '仕入帳'], ['order', '発注'], ['inv', '棚卸'], ['waste', '廃棄ロス'], ['items', '食材マスタ'], ['suppliers', '取引先']] },
   { g: 'メニュー', items: [['recipes', 'レシピ・原価'], ['allergen', 'アレルゲン表'], ['menu', 'メニュー制作']] },
@@ -703,7 +703,7 @@ const P = {}; // pages
 
 /* ---------- ホーム ---------- */
 P.home = {
-  keys: () => [MK('daily', curYM()), MK('resv', curYM()), MK('time', curYM()), MK('check', curYM()), MK('purch', curYM()), MK('regi', curYM()), 'tmpl'],
+  keys: () => [MK('daily', curYM()), MK('resv', curYM()), MK('time', curYM()), MK('check', curYM()), MK('purch', curYM()), 'tmpl'],
   render() {
     const set = SET(); const td = today(); const ym = curYM();
     if (Store.ready('settings') && !Store.get('settings', 'main')) return setupCard();
@@ -717,20 +717,19 @@ P.home = {
     const chkTotal = sum(tmpls, t => (t.items || []).length);
     const chkDone = sum(chk, c => Object.keys(c.done || {}).filter(k => c.done[k]).length);
     const todayDaily = Store.get(MK('daily', ym), td);
-    const todayRegi = Store.get(MK('regi', ym), td);
     const alerts = [];
     if (!set.shop) alerts.push(['warn', '店舗情報が未入力です', 'settings', '設定へ']);
     if (!staffActive().length) alerts.push(['warn', 'スタッフが未登録です（タイムカードに必要）', 'staff', '登録']);
     const unpaid = L('purch', ym).filter(p => p.pay === '掛' && !p.paid);
     if (unpaid.length) alerts.push(['acc', `今月の買掛金 未払い ${unpaid.length}件・${yen(sum(unpaid, p => num(p.a8) + num(p.a10)))}`, 'arap', '確認']);
-    const diffs = L('regi', ym).filter(r => regiCalc(r).diff !== 0);
-    if (diffs.length) alerts.push(['bad', `今月のレジ過不足 ${diffs.length}日`, 'regi', '確認']);
+    const hcToday = todayDaily && haccp(todayDaily);
+    if (hcToday && hcToday.filled && hcToday.ng.length) alerts.push(['warn', `今日の衛生記録に未確認あり：${hcToday.ng.join('・')}`, 'daily', '記入']);
+    if (todayDaily && !hcToday.filled) alerts.push(['acc', '今日の衛生記録が未記入です（日報の中にあります）', 'daily', '記入']);
     return `
     <div class="today"><span class="d">${dLong(td)}</span><span class="muted">${esc(set.shop || '')}</span></div>
     <div class="quick">
       <button data-go="time"><b>打刻する</b><span>${working.length ? `勤務中 ${working.map(t => esc(staffName(t.staff))).join('・')}` : '出勤・退勤・休憩'}</span></button>
-      <button data-act="dailyToday"><b>今日の日報</b><span>${todayDaily ? '記入済み · ' + yen(dailyTotal(todayDaily)) : '未記入'}</span></button>
-      <button data-go="regi"><b>レジ締め</b><span>${todayRegi ? '締め済み' : '未実施'}</span></button>
+      <button data-act="dailyToday"><b>今日の日報・衛生記録</b><span>${todayDaily ? '記入済み · ' + yen(dailyTotal(todayDaily)) : '未記入'}</span></button>
       <button data-go="check"><b>チェックリスト</b><span>${chkTotal ? `${chkDone} / ${chkTotal} 完了` : '未設定'}</span></button>
       <button data-act="cashAdd"><b>小口現金を記帳</b><span>買い出し・立替など</span></button>
       <button data-act="purchAdd"><b>仕入を記帳</b><span>納品書・請求書から</span></button>
@@ -778,98 +777,138 @@ A.setupSave = async () => {
 const F_DAILY = [
   { k: 'date', label: '日付', type: 'date', req: true },
   { k: 'weather', label: '天気', type: 'select', opts: WEATHER, blank: '—' },
-  { k: 'cash', label: '現金売上', type: 'money' },
+  { k: 'cashLunch', label: '現金売上（ランチ）', type: 'money' },
+  { k: 'cashDinner', label: '現金売上（ディナー）', type: 'money' },
   { k: 'card', label: 'カード売上', type: 'money', hint: 'PAYGATEのクレジット等' },
   { k: 'qr', label: 'QR・電子マネー', type: 'money' },
   { k: 'other', label: 'その他（掛売・食券等）', type: 'money' },
   { k: 'takeout', label: 'うちテイクアウト（8%）', type: 'money', hint: '売上合計のうち軽減税率分' },
-  { k: 'guests', label: '客数（人）', type: 'num' },
+  { k: 'guestsLunch', label: '客数（ランチ・人）', type: 'num' },
+  { k: 'guestsDinner', label: '客数（ディナー・人）', type: 'num' },
   { k: 'groups', label: '組数', type: 'num' },
   { k: 'by', label: '記入者', type: 'select', opts: () => staffActive().map(s => ({ v: s.name, l: s.name })), blank: '—' },
   { k: 'note', label: '特記事項（出来事・クレーム・売れ筋など）', type: 'textarea' },
+  { k: 'hcHead', type: 'head', label: '衛生管理（HACCP）の記録', hint: '全飲食店に義務づけられた日々の記録です。保健所の立入時に見せられるよう、1年間は保存してください。' },
+  { k: 'hcFridge', label: '冷蔵庫の温度（℃）', type: 'num', step: '0.1', hint: '10℃以下（目安）' },
+  { k: 'hcFreezer', label: '冷凍庫の温度（℃）', type: 'num', step: '0.1', hint: '−15℃以下（目安）' },
+  { k: 'hcHealth', label: '従業員の健康・手指', type: 'check', cl: '体調・手の傷・下痢嘔吐を確認した（異常なし）' },
+  { k: 'hcRecv', label: '原材料の受入', type: 'check', cl: '鮮度・期限・包装・温度を確認した' },
+  { k: 'hcHeat', label: '加熱の確認', type: 'check', cl: '中心部まで十分に加熱した（75℃1分以上／二枚貝は85〜90℃90秒以上）' },
+  { k: 'hcCool', label: '冷却・保管', type: 'check', cl: '仕込み品を速やかに冷却し、冷蔵・冷凍で保管した' },
+  { k: 'hcWash', label: '器具の洗浄・消毒', type: 'check', cl: 'まな板・包丁・ふきんを洗浄消毒した' },
+  { k: 'hcHand', label: '手洗い・トイレ', type: 'check', cl: '手洗いの徹底とトイレの清掃・消毒をした' },
+  { k: 'hcNote', label: '異常があったときの内容と対応', full: true, ph: '例：冷蔵庫が12℃→設定を下げ再確認、食材は廃棄' },
 ];
+const HC_CHECKS = [['hcHealth', '健康・手指'], ['hcRecv', '受入'], ['hcHeat', '加熱'], ['hcCool', '冷却・保管'], ['hcWash', '器具洗浄'], ['hcHand', '手洗い・トイレ']];
+function haccp(r) { // 日報1件の衛生記録の状態
+  const filled = r.hcFridge !== '' && r.hcFridge != null || HC_CHECKS.some(([k]) => r[k]);
+  const ng = [];
+  if (r.hcFridge !== '' && r.hcFridge != null && num(r.hcFridge) > 10) ng.push('冷蔵庫' + num(r.hcFridge) + '℃');
+  if (r.hcFreezer !== '' && r.hcFreezer != null && num(r.hcFreezer) > -15) ng.push('冷凍庫' + num(r.hcFreezer) + '℃');
+  for (const [k, l] of HC_CHECKS) if (!r[k]) ng.push(l);
+  return { filled, ng, pill: !filled ? '<span class="pill">未記入</span>' : ng.length ? `<span class="pill warn">要確認</span>` : '<span class="pill ok">OK</span>' };
+}
+/* 日報の中の「今日の仕入」。保存すると仕入帳に記帳される */
+let dailyLines = [];
+const dlRow = (l, i) => `<div class="ln" data-i="${esc(i)}">
+  <select data-chg="dlSet" data-k="supplier" data-i="${esc(i)}" aria-label="仕入先">${supOpts(l.supplier, '仕入先を選ぶ')}</select>
+  <input type="number" inputmode="numeric" value="${esc(l.amount ?? '')}" data-inp="dlSet" data-k="amount" data-i="${esc(i)}" aria-label="金額（税込）" placeholder="金額">
+  <select data-chg="dlSet" data-k="tax" data-i="${esc(i)}" aria-label="税率">${opts([{ v: 8, l: '8%' }, { v: 10, l: '10%' }], l.tax)}</select>
+  <select data-chg="dlSet" data-k="pay" data-i="${esc(i)}" aria-label="支払方法">${opts(PAY_OPTS, l.pay)}</select>
+  <button type="button" class="btn sm" data-act="dlDel" data-i="${esc(i)}" aria-label="この行を消す">×</button></div>`;
+function drawDL() {
+  const box = $('#dlines'); if (!box) return;
+  box.innerHTML = dailyLines.map(dlRow).join('') +
+    `<div class="row"><button type="button" class="btn sm" data-act="dlAdd">＋ 仕入先を追加</button><span class="sp"></span><span class="small" id="dlTotal"></span></div>`;
+  updDLTotal();
+}
+function updDLTotal() {
+  const el = $('#dlTotal'); if (!el) return;
+  const t = sum(dailyLines, l => l.supplier ? num(l.amount) : 0);
+  el.innerHTML = t ? `本日の仕入 <b>${yen(t)}</b>（保存すると仕入帳に記帳されます）` : '<span class="muted">仕入があれば入力してください</span>';
+}
+A.dlAdd = () => { dailyLines.push({ supplier: '', amount: '', tax: 8, pay: '掛' }); drawDL(); };
+A.dlDel = el => { dailyLines.splice(Number(el.dataset.i), 1); drawDL(); };
+CHG.dlSet = el => { const l = dailyLines[Number(el.dataset.i)]; if (!l) return; l[el.dataset.k] = el.dataset.k === 'amount' || el.dataset.k === 'tax' ? (el.value === '' ? '' : num(el.value)) : el.value; updDLTotal(); };
+const dailyPurch = (ym, date) => L('purch', ym).filter(p => p.src === 'daily' && p.date === date);
 function dailyForm(date) {
   const ym = ymOf(date); const rec = Store.get(MK('daily', ym), date);
+  dailyLines = dailyPurch(ym, date).sort((a, b) => String(a.id).localeCompare(String(b.id)))
+    .map(p => ({ id: p.id, supplier: p.supplier, amount: num(p.a8) + num(p.a10), tax: num(p.a10) ? 10 : 8, pay: p.pay || '掛', desc: p.desc || '', invoice: p.invoice, rc: p.rc }));
+  if (!dailyLines.length) dailyLines = [{ supplier: '', amount: '', tax: 8, pay: '掛' }];
   openForm({
     title: dLong(date) + ' の日報', fields: F_DAILY, value: rec || { date, by: S.me ? staffName(S.me) : '' },
-    onSave: async v => { if (rec && v.date !== date) await Store.put(MK('daily', ym), date, null); await Store.put(MK('daily', ymOf(v.date)), v.date, v); toast('日報を保存しました'); },
-    onDelete: rec ? async () => { if (!confirmDel()) return; await Store.put(MK('daily', ym), date, null); closeModal(); toast('削除しました'); } : null,
+    extra: `<div class="lines"><span class="small muted" style="font-weight:700;border-top:1px solid var(--line);padding-top:12px">今日の仕入（仕入先・金額・税率・支払方法）</span>
+      <div id="dlines" class="lines"></div>
+      <small class="hint">${suppliers().length ? '食品は8%、酒類・包材は10%です。金額は税込で入力してください。' : '先に「取引先」で仕入先を登録してください。'}</small></div>`,
+    onSave: async v => {
+      const l = v.cashLunch, d2 = v.cashDinner;
+      v.cash = (l === '' || l == null) && (d2 === '' || d2 == null) ? (rec ? num(rec.cash) : '') : num(l) + num(d2); // 現金売上の合計
+      const gl = v.guestsLunch, gd = v.guestsDinner;
+      v.guests = (gl === '' || gl == null) && (gd === '' || gd == null) ? (rec ? num(rec.guests) : '') : num(gl) + num(gd); // 客数の合計
+      const newYM = ymOf(v.date); const oldKey = MK('purch', ym), newKey = MK('purch', newYM);
+      if (rec && v.date !== date) await Store.put(MK('daily', ym), date, null);
+      await Store.put(MK('daily', newYM), v.date, v);
+      const before = dailyPurch(ym, date);
+      const moved = newYM !== ym || v.date !== date;
+      let n = 0;
+      for (const l of dailyLines) {
+        if (!l.supplier || !num(l.amount)) { if (l.id) await Store.put(oldKey, l.id, null); continue; }
+        const a = num(l.amount), ten = num(l.tax) === 10;
+        const p = { date: v.date, supplier: l.supplier, a8: ten ? '' : a, a10: ten ? a : '', pay: l.pay || '掛', desc: l.desc || '', invoice: !!l.invoice, src: 'daily' };
+        if (l.rc) p.rc = l.rc;
+        if (moved && l.id) await Store.put(oldKey, l.id, null);
+        await Store.put(newKey, moved || !l.id ? uid() : l.id, p); n++;
+      }
+      for (const p of before) if (!dailyLines.some(l => l.id === p.id)) await Store.put(oldKey, p.id, null);
+      toast(n ? `日報を保存しました（仕入 ${n}件を仕入帳に記帳）` : '日報を保存しました');
+    },
+    onDelete: rec ? async () => { if (!confirmDel()) return; await Store.put(MK('daily', ym), date, null); closeModal(); toast('削除しました（仕入帳の記帳は残ります）'); } : null,
   });
+  drawDL();
 }
 A.dailyToday = () => dailyForm(today());
 A.dailyEdit = el => dailyForm(el.dataset.id);
 P.daily = {
   month: true,
-  keys: () => [MK('daily', S.month)],
+  keys: () => [MK('daily', S.month), MK('purch', S.month), 'suppliers'],
   render() {
     const recs = L('daily', S.month); const map = Object.fromEntries(recs.map(r => [r.date, r]));
+    const purchByDay = groupBy(L('purch', S.month), p => p.date);
+    const pDay = d => sum(purchByDay[d] || [], p => num(p.a8) + num(p.a10));
     const tot = sum(recs, dailyTotal); const g = sum(recs, r => r.guests);
     const rows = monthDays(S.month).map(d => {
       const r = map[d]; const w = dowN(d); const cls = w === 0 ? 'sun' : w === 6 ? 'sat' : '';
-      if (!r) return `<tr class="click dim ${cls}" data-act="dailyEdit" data-id="${esc(d)}"><td>${dLabel(d)}</td><td colspan="8" class="muted small">未記入（タップして記入）</td></tr>`;
+      if (!r) return `<tr class="click dim ${cls}" data-act="dailyEdit" data-id="${esc(d)}"><td>${dLabel(d)}</td><td colspan="11" class="muted small">未記入（タップして記入）</td></tr>`;
       const t = dailyTotal(r);
-      return `<tr class="click ${cls}" data-act="dailyEdit" data-id="${esc(d)}"><td>${dLabel(d)}</td><td>${esc(r.weather || '')}</td><td class="n"><b>${yen(t)}</b></td><td class="n">${int(r.guests)}</td><td class="n">${num(r.guests) ? yen(t / num(r.guests)) : '—'}</td><td class="n">${yen(r.cash)}</td><td class="n">${yen(num(r.card) + num(r.qr) + num(r.other))}</td><td class="wrap small">${esc(r.note || '')}</td><td class="small muted">${esc(r.by || '')}</td></tr>`;
+      return `<tr class="click ${cls}" data-act="dailyEdit" data-id="${esc(d)}"><td>${dLabel(d)}</td><td>${esc(r.weather || '')}</td><td class="n"><b>${yen(t)}</b></td><td class="n">${int(r.guests)}${(r.guestsLunch !== '' && r.guestsLunch != null) || (r.guestsDinner !== '' && r.guestsDinner != null) ? `<br><span class="small muted">昼${int(r.guestsLunch)}/夜${int(r.guestsDinner)}</span>` : ''}</td><td class="n">${num(r.guests) ? yen(t / num(r.guests)) : '—'}</td><td class="n">${r.cashLunch !== '' && r.cashLunch != null ? yen(r.cashLunch) : ''}</td><td class="n">${r.cashDinner !== '' && r.cashDinner != null ? yen(r.cashDinner) : (r.cashLunch === '' || r.cashLunch == null ? yen(r.cash) : '')}</td><td class="n">${yen(num(r.card) + num(r.qr) + num(r.other))}</td><td class="n">${pDay(r.date) ? yen(pDay(r.date)) : ''}</td><td>${haccp(r).pill}</td><td class="wrap small">${esc(r.note || '')}</td><td class="small muted">${esc(r.by || '')}</td></tr>`;
     }).join('');
-    return `<div class="stats">${stat('売上合計', yen(tot), `${recs.length}営業日`)}${stat('日平均', yen(recs.length ? tot / recs.length : 0))}${stat('客数', int(g) + '人', g ? '平均客単価 ' + yen(tot / g) : '')}${stat('キャッシュレス比率', tot ? pct(sum(recs, r => num(r.card) + num(r.qr) + num(r.other)) / tot) : '—')}</div>
-    <div class="toolbar"><button class="btn primary" data-act="dailyToday">今日の日報を書く</button><span class="sp"></span><button class="btn" data-act="dailyCSV">CSV保存</button></div>
-    <div class="tw"><table class="tbl"><thead><tr><th>日付</th><th>天気</th><th class="n">売上</th><th class="n">客数</th><th class="n">客単価</th><th class="n">現金</th><th class="n">キャッシュレス</th><th>特記事項</th><th>記入</th></tr></thead><tbody>${rows}</tbody>
-    <tfoot><tr><td>合計</td><td></td><td class="n">${yen(tot)}</td><td class="n">${int(g)}</td><td class="n">${g ? yen(tot / g) : '—'}</td><td class="n">${yen(sum(recs, r => r.cash))}</td><td class="n">${yen(sum(recs, r => num(r.card) + num(r.qr) + num(r.other)))}</td><td colspan="2"></td></tr></tfoot></table></div>
-    <p class="hint">スマレジの日次売上を見ながら入力してください。テイクアウト分は消費税8%として仕訳CSVに反映されます。</p>`;
+    return `<div class="stats">${stat('売上合計', yen(tot), `${recs.length}営業日`)}${stat('日平均', yen(recs.length ? tot / recs.length : 0))}${stat('客数', int(g) + '人', (g ? '平均客単価 ' + yen(tot / g) : '') + (sum(recs, r => r.guestsLunch) || sum(recs, r => r.guestsDinner) ? `　昼${int(sum(recs, r => r.guestsLunch))}/夜${int(sum(recs, r => r.guestsDinner))}` : ''))}${stat('現金売上（昼／夜）', yen(sum(recs, r => r.cashLunch)) + ' / ' + yen(sum(recs, r => (r.cashLunch === '' || r.cashLunch == null) && (r.cashDinner === '' || r.cashDinner == null) ? r.cash : r.cashDinner)))}${stat('衛生記録', recs.filter(r => haccp(r).filled).length + ' / ' + recs.length + '日', recs.filter(r => haccp(r).filled && haccp(r).ng.length).length ? '要確認 ' + recs.filter(r => haccp(r).filled && haccp(r).ng.length).length + '日' : '')}</div>
+    <div class="toolbar"><button class="btn primary" data-act="dailyToday">今日の日報を書く</button><span class="sp"></span><button class="btn" data-act="dailyCSV">CSV保存</button><button class="btn" data-act="hcPrint">衛生記録を印刷用に保存</button></div>
+    <div class="tw"><table class="tbl"><thead><tr><th>日付</th><th>天気</th><th class="n">売上</th><th class="n">客数</th><th class="n">客単価</th><th class="n">現金（ランチ）</th><th class="n">現金（ディナー）</th><th class="n">キャッシュレス</th><th class="n">仕入</th><th>衛生</th><th>特記事項</th><th>記入</th></tr></thead><tbody>${rows}</tbody>
+    <tfoot><tr><td>合計</td><td></td><td class="n">${yen(tot)}</td><td class="n">${int(g)}</td><td class="n">${g ? yen(tot / g) : '—'}</td><td class="n">${yen(sum(recs, r => r.cashLunch))}</td><td class="n">${yen(sum(recs, r => (r.cashLunch === '' || r.cashLunch == null) && (r.cashDinner === '' || r.cashDinner == null) ? r.cash : r.cashDinner))}</td><td class="n">${yen(sum(recs, r => num(r.card) + num(r.qr) + num(r.other)))}</td><td class="n">${yen(sum(L('purch', S.month), p => num(p.a8) + num(p.a10)))}</td><td colspan="3"></td></tr></tfoot></table></div>
+    <p class="hint">スマレジの日次売上を見ながら入力してください。テイクアウト分は消費税8%として仕訳CSVに反映されます。衛生管理の記録と、その日の仕入の入力も日報の中にあります。入力した仕入は自動で仕入帳に記帳されます。</p>`;
   }
 };
 A.dailyCSV = () => {
   const recs = L('daily', S.month).sort(byDate);
-  saveFile(`日報_${S.month}.csv`, toCSV([['日付', '天気', '売上合計', '現金', 'カード', 'QR・電子マネー', 'その他', 'うちテイクアウト', '客数', '組数', '記入者', '特記事項'], ...recs.map(r => [r.date, r.weather, dailyTotal(r), num(r.cash), num(r.card), num(r.qr), num(r.other), num(r.takeout), num(r.guests), num(r.groups), r.by, r.note])]));
+  saveFile(`日報_${S.month}.csv`, toCSV([['日付', '天気', '売上合計', '現金(ランチ)', '現金(ディナー)', '現金合計', 'カード', 'QR・電子マネー', 'その他', 'うちテイクアウト', '客数(ランチ)', '客数(ディナー)', '客数合計', '組数', '記入者', '特記事項', '冷蔵庫(℃)', '冷凍庫(℃)', ...HC_CHECKS.map(c => c[1]), '衛生の異常と対応'],
+    ...recs.map(r => [r.date, r.weather, dailyTotal(r), num(r.cashLunch), (r.cashLunch === '' || r.cashLunch == null) && (r.cashDinner === '' || r.cashDinner == null) ? num(r.cash) : num(r.cashDinner), num(r.cash), num(r.card), num(r.qr), num(r.other), num(r.takeout), num(r.guestsLunch), num(r.guestsDinner), num(r.guests), num(r.groups), r.by, r.note,
+      r.hcFridge ?? '', r.hcFreezer ?? '', ...HC_CHECKS.map(([k]) => r[k] ? '○' : ''), r.hcNote || ''])]));
 };
 
-/* ---------- レジ締め ---------- */
-function regiCalc(r) {
-  const counted = sum(DENOMS, d => d * num((r.counts || {})[d]));
-  const expect = num(r.float) + num(r.cashSales) - num(r.payout);
-  return { counted, expect, diff: r.counts ? counted - expect : 0, deposit: counted - num(r.nextFloat ?? r.float) };
-}
-let regiDraft = null;
-P.regi = {
-  keys: () => [MK('regi', ymOf(S.day)), MK('daily', ymOf(S.day))],
-  render() {
-    const ym = ymOf(S.day); const saved = Store.get(MK('regi', ym), S.day);
-    const daily = Store.get(MK('daily', ym), S.day);
-    if (!regiDraft || regiDraft.date !== S.day) regiDraft = saved ? clone(saved) : { date: S.day, float: SET().float, counts: {}, cashSales: daily ? num(daily.cash) : '', payout: '', nextFloat: SET().float, note: '' };
-    const r = regiDraft; const c = regiCalc(r);
-    const hist = L('regi', ym).sort(byDate).reverse();
-    const diffCls = !saved && !Object.keys(r.counts).length ? '' : c.diff === 0 ? 'ok' : 'bad';
-    return `<div class="toolbar">${daySwitch()}<span class="sp"></span>${saved ? `<span class="pill ok">締め済み ${esc(saved.by || '')}</span>` : '<span class="pill">未締め</span>'}</div>
-    <div class="grid g2">
-      <div class="card"><h3>金種を数える</h3>
-        <div class="denom">${DENOMS.map(d => `<label for="dn_${esc(d)}">${d >= 1000 ? int(d) + '円札' : d + '円'}</label><input id="dn_${esc(d)}" type="number" inputmode="numeric" min="0" value="${esc((r.counts || {})[d] ?? '')}" data-inp="regiCount" data-d="${esc(d)}" placeholder="枚数"><span class="sub" id="dns_${esc(d)}">${yen(d * num((r.counts || {})[d]))}</span>`).join('')}</div>
-      </div>
-      <div class="card"><h3>締めの計算<span class="sp"></span>${c.diff === 0 && saved ? '<span class="stamp">締<br>済</span>' : ''}</h3>
-        <div class="grid" style="grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
-          <label class="f"><span>釣銭準備金</span><input id="rg_float" type="number" value="${esc(r.float)}" data-inp="regiField" data-k="float"></label>
-          <label class="f"><span>現金売上${daily ? '（日報より）' : ''}</span><input id="rg_sales" type="number" value="${esc(r.cashSales)}" data-inp="regiField" data-k="cashSales"></label>
-          <label class="f"><span>レジからの支払</span><input id="rg_pay" type="number" value="${esc(r.payout)}" data-inp="regiField" data-k="payout"></label>
-          <label class="f"><span>翌日の準備金</span><input id="rg_next" type="number" value="${esc(r.nextFloat)}" data-inp="regiField" data-k="nextFloat"></label>
-        </div>
-        <dl class="kv" id="regiKV">${regiKV(c)}</dl>
-        <label class="f" style="margin-top:12px"><span>メモ（過不足の理由など）</span><input id="rg_note" value="${esc(r.note || '')}" data-inp="regiField" data-k="note"></label>
-        <div class="row" style="margin-top:14px"><button class="btn primary big" data-act="regiSave">${saved ? '更新する' : 'レジ締めを保存'}</button>${saved ? '<button class="btn danger" data-act="regiDel">削除</button>' : ''}</div>
-      </div>
-    </div>
-    <section class="sec" style="margin-top:24px"><h3>${ymLabel(ym)}の締め履歴</h3>
-      ${hist.length ? `<div class="tw"><table class="tbl"><thead><tr><th>日付</th><th class="n">理論在高</th><th class="n">実在高</th><th class="n">過不足</th><th class="n">入金額</th><th>担当</th><th>メモ</th></tr></thead><tbody>${hist.map(h => { const x = regiCalc(h); return `<tr class="click" data-act="regiOpen" data-id="${esc(h.date)}"><td>${dLabel(h.date)}</td><td class="n">${yen(x.expect)}</td><td class="n">${yen(x.counted)}</td><td class="n"><span class="pill ${x.diff === 0 ? 'ok' : 'bad'}">${x.diff > 0 ? '+' : ''}${yen(x.diff)}</span></td><td class="n">${yen(x.deposit)}</td><td>${esc(h.by || '')}</td><td class="wrap small">${esc(h.note || '')}</td></tr>`; }).join('')}</tbody></table></div>` : emptyBox('まだ締めの記録がありません', '')}
-    </section>`;
-  }
+A.hcPrint = () => {
+  const set = SET(); const recs = L('daily', S.month).sort(byDate);
+  const rows = monthDays(S.month).map(d => {
+    const r = recs.find(x => x.date === d); if (!r || !haccp(r).filled) return `<tr><td>${dLabel(d)}</td><td colspan="${HC_CHECKS.length + 3}" style="color:#888">—</td></tr>`;
+    return `<tr><td>${dLabel(d)}</td><td class="n">${esc(r.hcFridge ?? '')}</td><td class="n">${esc(r.hcFreezer ?? '')}</td>${HC_CHECKS.map(([k]) => `<td style="text-align:center">${r[k] ? '○' : '×'}</td>`).join('')}<td>${esc(r.hcNote || '')}</td><td>${esc(r.by || '')}</td></tr>`;
+  }).join('');
+  saveFile(`衛生管理記録_${S.month}.html`, printDoc(`衛生管理記録 ${ymLabel(S.month)}`,
+    `<h1>衛生管理の記録（HACCPの考え方を取り入れた衛生管理）</h1>
+     <div class="meta">${esc(set.shop || set.trade || '')}　${esc(ymLabel(S.month))}　食品衛生責任者：${esc(set.owner || '')}</div>
+     <table><thead><tr><th>日付</th><th>冷蔵庫℃</th><th>冷凍庫℃</th>${HC_CHECKS.map(c => `<th>${esc(c[1])}</th>`).join('')}<th>異常と対応</th><th>確認者</th></tr></thead><tbody>${rows}</tbody></table>
+     <p style="font-size:9pt">○＝確認済み　×＝未確認　—＝記録なし。この記録は1年間保存してください。</p>`));
 };
-function regiKV(c) {
-  return `<dt>理論在高（準備金＋現金売上−支払）</dt><dd>${yen(c.expect)}</dd><dt>実在高（数えた現金）</dt><dd>${yen(c.counted)}</dd>
-  <dt class="tot">過不足</dt><dd class="tot"><span class="pill ${c.diff === 0 ? 'ok' : 'bad'}">${c.diff > 0 ? '+' : ''}${yen(c.diff)}</span></dd>
-  <dt>売上金として取り出す額</dt><dd>${yen(c.deposit)}</dd>`;
-}
-CHG.regiCount = el => { regiDraft.counts[el.dataset.d] = el.value === '' ? '' : num(el.value); $('#dns_' + el.dataset.d).textContent = yen(el.dataset.d * num(el.value)); $('#regiKV').innerHTML = regiKV(regiCalc(regiDraft)); };
-CHG.regiField = el => { regiDraft[el.dataset.k] = el.dataset.k === 'note' ? el.value : (el.value === '' ? '' : num(el.value)); $('#regiKV').innerHTML = regiKV(regiCalc(regiDraft)); };
-A.regiSave = async () => { const r = { ...regiDraft, by: S.me ? staffName(S.me) : (regiDraft.by || ''), at: new Date().toISOString() }; await Store.put(MK('regi', ymOf(r.date)), r.date, r); regiDraft = null; toast('レジ締めを保存しました'); };
-A.regiDel = async () => { if (!confirmDel()) return; await Store.put(MK('regi', ymOf(S.day)), S.day, null); regiDraft = null; toast('削除しました'); };
-A.regiOpen = el => { S.day = el.dataset.id; regiDraft = null; render(); window.scrollTo(0, 0); };
 
 /* ---------- チェックリスト ---------- */
 P.check = {
@@ -1184,11 +1223,11 @@ P.purch = {
     const bySup = groupBy(list, p => p.supplier);
     return `<div class="stats">${stat('仕入合計（税込）', yen(sum(list, tot)), list.length + '件')}${stat('うち8%', yen(sum(list, p => p.a8)))}${stat('うち10%', yen(sum(list, p => p.a10)))}${stat('買掛 未払い', yen(sum(list.filter(p => p.pay === '掛' && !p.paid), tot)))}</div>
     <div class="toolbar"><button class="btn primary" data-act="purchAdd">＋ 仕入を記帳</button><span class="sp"></span><button class="btn" data-act="purchCSV">仕入帳CSV</button></div>
-    ${list.length ? `<div class="tw"><table class="tbl"><thead><tr><th>日付</th><th>仕入先</th><th>内容</th><th class="n">8%</th><th class="n">10%</th><th class="n">合計</th><th>支払</th><th>照合</th><th></th></tr></thead><tbody>${list.map(p => `<tr class="click" data-act="purchEdit" data-id="${esc(p.id)}"><td>${dLabel(p.date)}</td><td>${esc(supName(p.supplier))}</td><td class="wrap small">${esc(p.desc || '')}</td><td class="n">${p.a8 ? yen(p.a8) : ''}</td><td class="n">${p.a10 ? yen(p.a10) : ''}</td><td class="n"><b>${yen(tot(p))}</b></td><td>${esc(p.pay || '')}${p.pay === '掛' ? (p.paid ? ' <span class="pill ok">済</span>' : ' <span class="pill warn">未払</span>') : ''}</td><td>${p.checked ? '<span class="pill ok">済</span>' : ''}</td><td>${receiptLink(p)}</td></tr>`).join('')}</tbody>
+    ${list.length ? `<div class="tw"><table class="tbl"><thead><tr><th>日付</th><th>仕入先</th><th>内容</th><th class="n">8%</th><th class="n">10%</th><th class="n">合計</th><th>支払</th><th>照合</th><th></th></tr></thead><tbody>${list.map(p => `<tr class="click" data-act="purchEdit" data-id="${esc(p.id)}"><td>${dLabel(p.date)}</td><td>${esc(supName(p.supplier))}</td><td class="wrap small">${esc(p.desc || '')}${p.src === 'daily' ? ' <span class="pill acc">日報から</span>' : ''}</td><td class="n">${p.a8 ? yen(p.a8) : ''}</td><td class="n">${p.a10 ? yen(p.a10) : ''}</td><td class="n"><b>${yen(tot(p))}</b></td><td>${esc(p.pay || '')}${p.pay === '掛' ? (p.paid ? ' <span class="pill ok">済</span>' : ' <span class="pill warn">未払</span>') : ''}</td><td>${p.checked ? '<span class="pill ok">済</span>' : ''}</td><td>${receiptLink(p)}</td></tr>`).join('')}</tbody>
     <tfoot><tr><td colspan="3">合計</td><td class="n">${yen(sum(list, p => p.a8))}</td><td class="n">${yen(sum(list, p => p.a10))}</td><td class="n">${yen(sum(list, tot))}</td><td colspan="3"></td></tr></tfoot></table></div>
     <section class="sec" style="margin-top:22px"><h3>仕入先別</h3><div class="tw"><table class="tbl"><thead><tr><th>仕入先</th><th class="n">件数</th><th class="n">合計</th></tr></thead><tbody>${Object.keys(bySup).map(k => `<tr><td>${esc(supName(k))}</td><td class="n">${bySup[k].length}</td><td class="n">${yen(sum(bySup[k], tot))}</td></tr>`).join('')}</tbody></table></div></section>`
         : emptyBox(ymLabel(S.month) + 'の仕入はまだありません', suppliers().length ? '' : '先に「取引先」で仕入先を登録してください', suppliers().length ? '<button class="btn primary" data-act="purchAdd">＋ 仕入を記帳</button>' : '<button class="btn primary" data-go="suppliers">取引先へ</button>')}
-    <p class="hint">食品は軽減税率8%、酒類・包材・消耗品は10%です。インボイス（適格請求書）は7年間保存してください。</p>`;
+    <p class="hint">日報の「今日の仕入」で入力したものは「日報から」と表示されます（金額の修正はどちらからでもできます）。食品は軽減税率8%、酒類・包材・消耗品は10%です。インボイス（適格請求書）は7年間保存してください。</p>`;
   }
 };
 A.purchCSV = () => { const list = L('purch', S.month).sort(byDate); saveFile(`仕入帳_${S.month}.csv`, toCSV([['日付', '仕入先', '内容', '8%対象(税込)', '10%対象(税込)', '合計', '支払方法', '支払日', '適格請求書', '照合', 'メモ'], ...list.map(p => [p.date, supName(p.supplier), p.desc, num(p.a8), num(p.a10), num(p.a8) + num(p.a10), p.pay, p.paid || '', p.invoice ? '○' : '', p.checked ? '○' : '', p.note])])); };
@@ -1783,21 +1822,21 @@ function render() {
 }
 function syncToday(force) { // 開きっぱなしで日付が変わったとき・画面を移動したとき
   const td = today();
-  if (S.lastToday !== td) { S.lastToday = td; S.month = curYM(); S.year = Number(td.slice(0, 4)); S.day = td; regiDraft = null; S.cache = {}; return true; }
+  if (S.lastToday !== td) { S.lastToday = td; S.month = curYM(); S.year = Number(td.slice(0, 4)); S.day = td; S.cache = {}; return true; }
   if (force) S.day = td;
   return false;
 }
 function nav(page) {
   if (!P[page]) return;
   syncToday(true);
-  S.page = page; lsSet('rk.page', page); regiDraft = null; menuDraft = null; S.cache = {};
+  S.page = page; lsSet('rk.page', page); menuDraft = null; S.cache = {};
   $('#app').classList.remove('open'); pruneSubs(); render(); window.scrollTo(0, 0);
 }
 A.toggleNav = () => $('#app').classList.toggle('open');
 A.mon = el => { S.month = addMonth(S.month, Number(el.dataset.n)); S.cache = {}; pruneSubs(); render(); };
 A.year = el => { S.year += Number(el.dataset.n); S.cache = {}; render(); };
-A.day = el => { const n = Number(el.dataset.n); S.day = n === 0 ? today() : addDay(S.day, n); regiDraft = null; pruneSubs(); render(); };
-CHG.day = el => { if (el.value) { S.day = el.value; regiDraft = null; el.blur(); pruneSubs(); render(); } };
+A.day = el => { const n = Number(el.dataset.n); S.day = n === 0 ? today() : addDay(S.day, n); pruneSubs(); render(); };
+CHG.day = el => { if (el.value) { S.day = el.value; el.blur(); pruneSubs(); render(); } };
 A.receipt = async el => {
   let url = el.dataset.url;
   if (!url.startsWith('sb:')) { toast('この証憑は開けません'); return; } // 自分の保存場所以外のURLは開かない
@@ -1827,27 +1866,39 @@ setInterval(() => { if (!booted || modalState) return; if (syncToday(false)) { p
 function loginScreen(msg = '', mode = 'login') {
   $('#side').innerHTML = ''; $('#side').hidden = true;
   $('#app').style.gridTemplateColumns = '1fr';
+  const shared = mode !== 'other';
   $('#main').innerHTML = `<div style="max-width:420px;margin:10vh auto 0" class="card">
-    <div class="brand" style="padding:0 0 14px;margin-bottom:14px"><span class="seal" aria-hidden="true">姫川</span><div><b>のどぐろ家姫川</b><small>${mode === 'login' ? 'ログイン' : '新規登録'}</small></div></div>
-    ${msg ? `<div class="note-box ${/できません|違い|失敗|登録されていません/.test(msg) ? 'warn' : ''}">${esc(msg)}</div>` : ''}
+    <div class="brand" style="padding:0 0 14px;margin-bottom:14px"><span class="seal" aria-hidden="true">姫川</span><div><b>のどぐろ家姫川</b><small>${mode === 'signup' ? 'パスワードの設定' : shared ? 'お店のパスワードを入力' : '別のアカウントでログイン'}</small></div></div>
+    ${msg ? `<div class="note-box ${/できません|違い|失敗|登録されていません|一致/.test(msg) ? 'warn' : ''}">${esc(msg)}</div>` : ''}
     <form id="loginForm" class="grid" style="gap:12px">
-      <label class="f"><span>メールアドレス</span><input id="lg_email" type="email" autocomplete="username" required value="${esc(lsGet('rk.lastEmail', ''))}"></label>
-      <label class="f"><span>パスワード${mode === 'signup' ? '（8文字以上）' : ''}</span><input id="lg_pass" type="password" autocomplete="${mode === 'login' ? 'current-password' : 'new-password'}" required minlength="${mode === 'signup' ? 8 : 1}"></label>
-      <button class="btn primary big" type="submit">${mode === 'login' ? 'ログイン' : '登録する'}</button>
-      <button class="btn" type="button" id="lg_switch">${mode === 'login' ? 'はじめての方：新規登録' : 'ログイン画面に戻る'}</button>
+      ${shared ? `<input type="email" name="email" value="${esc(SHOP_EMAIL)}" autocomplete="username" readonly hidden>` :
+        `<label class="f"><span>メールアドレス</span><input id="lg_email" type="email" autocomplete="username" required value="${esc(lsGet('rk.lastEmail', ''))}"></label>`}
+      <label class="f"><span>パスワード${mode === 'signup' ? '（8文字以上）' : ''}</span><input id="lg_pass" type="password" autocomplete="${mode === 'login' || mode === 'other' ? 'current-password' : 'new-password'}" required minlength="${mode === 'signup' ? 8 : 1}" autofocus></label>
+      ${mode === 'signup' ? '<label class="f"><span>パスワード（確認のためもう一度）</span><input id="lg_pass2" type="password" autocomplete="new-password" required minlength="8"></label>' : ''}
+      <button class="btn primary big" type="submit">${mode === 'signup' ? 'このパスワードで設定する' : 'ログイン'}</button>
+      <div class="row" style="justify-content:space-between">
+        <button class="btn sm" type="button" id="lg_switch">${mode === 'signup' ? 'ログイン画面に戻る' : 'はじめて使うとき（パスワードを設定）'}</button>
+        <button class="btn sm" type="button" id="lg_other">${shared ? '別のアカウントで入る' : 'お店のパスワードで入る'}</button>
+      </div>
     </form></div>`;
-  $('#lg_switch').onclick = () => loginScreen('', mode === 'login' ? 'signup' : 'login');
+  $('#lg_switch').onclick = () => loginScreen('', mode === 'signup' ? 'login' : 'signup');
+  $('#lg_other').onclick = () => loginScreen('', shared ? 'other' : 'login');
   $('#loginForm').onsubmit = async ev => {
-    ev.preventDefault(); const email = $('#lg_email').value.trim(), pass = $('#lg_pass').value; lsSet('rk.lastEmail', email);
+    ev.preventDefault();
+    const email = shared ? SHOP_EMAIL : $('#lg_email').value.trim(), pass = $('#lg_pass').value;
+    if (!shared) lsSet('rk.lastEmail', email);
+    if (mode === 'signup' && pass !== $('#lg_pass2').value) { loginScreen('パスワードが一致しません。もう一度入力してください。', 'signup'); return; }
     const btn = $('#loginForm button[type=submit]'); btn.disabled = true;
     try {
-      if (mode === 'signup') { const j = await SB.signup(email, pass); if (!j.access_token) { loginScreen('確認メールを送りました。メール内のリンクを押してから、ここでログインしてください（リンク先のページが開けなくても確認は完了しています）。'); return; } }
-      else await SB.login(email, pass);
+      if (mode === 'signup') {
+        const j = await SB.signup(email, pass);
+        if (!j.access_token) { loginScreen(`${email} 宛に確認メールを送りました。メール内のリンクを押したあと、この画面でパスワードを入力してログインしてください（リンク先のページが開けなくても確認は完了しています）。`); return; }
+      } else await SB.login(email, pass);
       start();
     } catch (e) {
       btn.disabled = false;
-      const m = /Invalid login/i.test(e.message) ? 'メールアドレスかパスワードが違います' : /not confirmed/i.test(e.message) ? 'メールの確認がまだです。届いたメールのリンクを押してください' : /already registered/i.test(e.message) ? 'このアドレスは登録済みです。ログインしてください' : 'できませんでした：' + e.message;
-      loginScreen(m, mode);
+      const m = /Invalid login/i.test(e.message) ? 'パスワードが違います' : /not confirmed/i.test(e.message) ? 'メールの確認がまだです。届いたメールのリンクを押してください' : /already registered/i.test(e.message) ? 'すでに設定済みです。ログイン画面でパスワードを入力してください' : /weak|at least/i.test(e.message) ? 'パスワードが短すぎます（8文字以上）' : 'ログインできませんでした：' + e.message;
+      loginScreen(m, mode === 'signup' ? 'signup' : mode);
     }
   };
 }
