@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-Ogx3fO0MxST7w+KN2QNix9YsIXXLKyIY6tUIIOsQk2k='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data: blob: https://tzmptqweehooidklvhpv.supabase.co; object-src https://tzmptqweehooidklvhpv.supabase.co; base-uri 'none'; form-action 'none'; manifest-src 'self'"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="のどぐろ家姫川"><meta name="theme-color" content="#23467A"></head><body>
+<html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-Y6BH8tztIDzPdH70pLxMZivgZPQ6bPbtmkR0jjzhprk='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data: blob: https://tzmptqweehooidklvhpv.supabase.co; object-src https://tzmptqweehooidklvhpv.supabase.co; base-uri 'none'; form-action 'none'; manifest-src 'self'"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="のどぐろ家姫川"><meta name="theme-color" content="#23467A"></head><body>
 <title>のどぐろ家姫川</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -118,6 +118,7 @@ table.tbl{border-collapse:collapse;width:100%;font-size:14px}
 .note-box.warn{border-color:var(--warn);background:var(--warn-soft)}
 .note-box.ok{border-color:var(--ok);background:var(--ok-soft)}
 .tbl tr.grp td{background:var(--surface2);font-weight:700}
+.tbl tr.ex td{background:var(--ok-soft)}
 .note-box.bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .note-box.bar>.sp{flex:1 1 240px}
 .note-box.bar .small{color:var(--muted)}
@@ -293,7 +294,7 @@ const DENOMS = [10000, 5000, 1000, 500, 100, 50, 10, 5, 1];
 const WEATHER = ['晴れ', '曇り', '雨', '雪', '晴れ時々曇り', '曇り時々雨'];
 // 定額法の償却率（平成19年4月1日以後取得）
 const SL_RATE = { 2: .5, 3: .334, 4: .25, 5: .2, 6: .167, 7: .143, 8: .125, 9: .112, 10: .1, 11: .091, 12: .084, 13: .077, 14: .072, 15: .067, 16: .063, 17: .059, 18: .056, 19: .053, 20: .05, 22: .046, 24: .042, 25: .04, 30: .034, 34: .03, 39: .026, 47: .022 };
-const DEF_SET = { shop: '', trade: '', owner: '', addr: '', tel: '', invoiceNo: '', openDate: '', float: 30000, cashStart: 0, cashStartMonth: '', invStart: 0, weekLimit: 40, payday: 25, monthlyHours: 173, reportMail: 'kabusikigaisya.umeda@gmail.com' };
+const DEF_SET = { shop: '', trade: '', owner: '', addr: '', tel: '', invoiceNo: '', openDate: '', float: 30000, cashStart: 0, cashStartMonth: '', coinStart: 0, coinStartMonth: '', invStart: 0, weekLimit: 40, payday: 25, monthlyHours: 173, reportMail: 'kabusikigaisya.umeda@gmail.com' };
 const DEF_TMPL = [
   { name: '開店前', order: 1, items: ['ガス・換気扇ON', '冷蔵庫・冷凍庫の温度確認', '手洗い・アルコール設置', 'スタッフの体調確認', '客席・トイレ清掃', 'レジ釣銭の準備', '看板・のれんを出す'] },
   { name: '閉店後', order: 2, items: ['ガス元栓を閉める', 'フライヤー・コンロの火の確認', '冷蔵庫の扉を確認', '生ごみ・ごみ出し', '床・厨房清掃', 'レジ締め', '日報を書く', '電気・エアコンOFF', '施錠'] },
@@ -511,7 +512,7 @@ function confirmDel(extra) { // 2回押しで削除（ダイアログを使わ�
 /* ---- ファイル保存（CSV/HTML） ---- */
 const csvCell = v => { let s = String(v ?? ''); if (typeof v !== 'number' && /^[=+\-@\t\r]/.test(s)) s = "'" + s; /* 表計算ソフトの数式実行を防ぐ */ return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
 const toCSV = rows => '﻿' + rows.map(r => r.map(csvCell).join(',')).join('\r\n');
-const FN_MAP = [['売上日計表', 'daily-sales'], ['ウメダ在庫一覧', 'umeda-stock-list'], ['相場表', 'market-prices'], ['衛生管理記録', 'hygiene-log'], ['小口現金出納帳', 'petty-cash'], ['固定資産台帳', 'fixed-assets'], ['労働者名簿', 'staff-register'], ['賃金台帳', 'wage-ledger'], ['アレルゲン表', 'allergens'], ['給与明細', 'payslip'], ['月別集計', 'monthly-summary'], ['バックアップ', '_backup'], ['のどぐろ家姫川', 'nodoguro-himekawa'], ['シフト表', 'shift'], ['仕訳帳', 'journal'], ['仕入帳', 'purchases'], ['経費帳', 'expenses'], ['出勤簿', 'attendance'], ['棚卸表', 'inventory'], ['原価表', 'recipe-costs'], ['メニュー', 'menu'], ['日報', 'daily-report']];
+const FN_MAP = [['出勤簿_全員', 'attendance-all'], ['売上小銭出納帳', 'coin-cash-book'], ['売上日計表', 'daily-sales'], ['ウメダ在庫一覧', 'umeda-stock-list'], ['相場表', 'market-prices'], ['衛生管理記録', 'hygiene-log'], ['小口現金出納帳', 'petty-cash'], ['固定資産台帳', 'fixed-assets'], ['労働者名簿', 'staff-register'], ['賃金台帳', 'wage-ledger'], ['アレルゲン表', 'allergens'], ['給与明細', 'payslip'], ['月別集計', 'monthly-summary'], ['バックアップ', '_backup'], ['のどぐろ家姫川', 'nodoguro-himekawa'], ['シフト表', 'shift'], ['仕訳帳', 'journal'], ['仕入帳', 'purchases'], ['経費帳', 'expenses'], ['出勤簿', 'attendance'], ['棚卸表', 'inventory'], ['原価表', 'recipe-costs'], ['メニュー', 'menu'], ['日報', 'daily-report']];
 function asciiName(fn) { // 一部のブラウザは日本語のファイル名を無視するため英数字に置き換える
   let s = fn; for (const [j, e] of FN_MAP) s = s.split(j).join(e);
   const m = s.match(/\.[a-z0-9]+$/i); const ext = m ? m[0] : ''; let base = ext ? s.slice(0, -ext.length) : s;
@@ -689,6 +690,20 @@ function cashLines(ym, src) {
   for (const p of src.purch.filter(p => p.pay === '小口現金')) lines.push({ date: p.date, desc: supName(p.supplier) + (p.desc ? ' ' + p.desc : ''), account: '仕入高', inAmt: 0, outAmt: num(p.a8) + num(p.a10), src: 'purch', rec: p });
   return lines.sort(byDate);
 }
+// 売上小銭の前月繰越（開始月から積み上げ）
+const coinIn = r => r.kind === '両替' ? 0 : num(r.amount);
+const coinOut = r => r.kind === '両替' ? num(r.amount) : 0;
+async function coinCarry(ym) {
+  const set = SET();
+  const start = set.coinStartMonth || ym;
+  if (ym <= start) return num(set.coinStart);
+  let bal = num(set.coinStart);
+  for (let m = start; m < ym; m = addMonth(m, 1)) {
+    const list = await Store.fetch(MK('coin', m));
+    bal += sum(list, coinIn) - sum(list, coinOut);
+  }
+  return bal;
+}
 // 小口現金の前月繰越（開始月から積み上げ）
 async function cashCarry(ym) {
   const set = SET();
@@ -730,7 +745,7 @@ const NAV = [
   { g: '労務', items: [['time', 'タイムカード'], ['shift', 'シフト表'], ['pay', '給与・賃金台帳'], ['staff', 'スタッフ名簿']] },
   { g: '仕入・在庫', items: [['purch', '仕入帳'], ['order', '発注'], ['inv', '棚卸'], ['waste', '廃棄ロス'], ['items', '食材マスタ'], ['suppliers', '取引先']] },
   { g: 'メニュー', items: [['recipes', 'レシピ・原価'], ['allergen', 'アレルゲン表'], ['menu', 'メニュー制作']] },
-  { g: '経理・申告', items: [['sales', '売上日計表'], ['cash', '小口現金出納帳'], ['exp', '経費帳'], ['arap', '売掛・買掛'], ['fixed', '固定資産台帳'], ['annual', '年間集計・CSV']] },
+  { g: '経理・申告', items: [['sales', '売上日計表'], ['cash', '小口現金出納帳'], ['coin', '売上小銭出納帳'], ['exp', '経費帳'], ['arap', '売掛・買掛'], ['fixed', '固定資産台帳'], ['annual', '年間集計・CSV']] },
   { g: '卸・販売', items: [['umeda', 'ウメダ在庫一覧'], ['souba', '相場表']] },
   { g: '', items: [['settings', '設定・バックアップ']] },
 ];
@@ -1197,10 +1212,10 @@ P.time = {
           : onBreak ? `<button class="btn" data-act="punch" data-k="be" data-s="${esc(s.id)}">休憩終了</button><button class="btn" disabled>退勤</button>`
             : `<button class="btn" data-act="punch" data-k="bs" data-s="${esc(s.id)}">休憩開始</button><button class="btn primary" data-act="punch" data-k="out" data-s="${esc(s.id)}">退勤</button>`}</div></div>`;
     }).join('')}</div>` : emptyBox('スタッフが登録されていません', '「スタッフ名簿」で登録すると、ここに打刻ボタンが並びます', '<button class="btn primary" data-go="staff">スタッフ名簿へ</button>');
-    const sumRows = staffAll().filter(s => sm[s.id]).map(s => { const x = sm[s.id]; return `<tr><td>${esc(s.name)}</td><td class="n">${x.days}日</td><td class="n">${hrs(x.work)}h</td><td class="n">${hrs(x.ot)}h ${otPill(x.ot)}</td><td class="n">${hrs(x.night)}h</td></tr>`; }).join('');
+    const sumRows = staffAll().filter(s => sm[s.id]).map((s, i) => { const x = sm[s.id]; return `<tr><td>${esc(s.name)}</td><td class="n">${x.days}日</td><td class="n">${hrs(x.work)}h</td><td class="n">${hrs(x.ot)}h ${otPill(x.ot)}</td><td class="n">${hrs(x.night)}h</td><td><button class="btn sm" data-act="timePrintOne" data-id="${esc(s.id)}" data-no="${i + 1}">この人の出勤簿をA4印刷</button></td></tr>`; }).join('');
     return `<div class="toolbar"><span class="muted small">打刻は現在時刻で記録されます（${dLong(today())}）</span></div>${punch}
-    <section class="sec"><h3>${ymLabel(S.month)}の集計<span class="sp"></span><button class="btn sm" data-act="timeCSV">出勤簿CSV</button><button class="btn sm" data-act="timePrint">A4の印刷用に保存</button></h3>
-      ${sumRows ? `<div class="tw"><table class="tbl"><thead><tr><th>氏名</th><th class="n">出勤日数</th><th class="n">実働時間</th><th class="n">法定時間外</th><th class="n">深夜（22〜5時）</th></tr></thead><tbody>${sumRows}</tbody></table></div>` : emptyBox('この月の勤怠記録はありません', '')}
+    <section class="sec"><h3>${ymLabel(S.month)}の集計<span class="sp"></span><button class="btn sm" data-act="timeCSV">出勤簿CSV</button><button class="btn sm" data-act="timePrint">一覧をA4印刷</button><button class="btn sm primary" data-act="timePrintAll">全員分をA4印刷（1人1枚）</button></h3>
+      ${sumRows ? `<div class="tw"><table class="tbl"><thead><tr><th>氏名</th><th class="n">出勤日数</th><th class="n">実働時間</th><th class="n">法定時間外</th><th class="n">深夜（22〜5時）</th><th></th></tr></thead><tbody>${sumRows}</tbody></table></div>` : emptyBox('この月の勤怠記録はありません', '')}
       <p class="hint">法定時間外＝1日8時間超＋週${SET().weekLimit}時間超（日曜始まり・月内で集計）。分単位で計算しています（切り捨てはしません）。時間外労働には36協定の届出が必要で、上限は原則 月45時間・年360時間です（45h超・60h超に印が付きます）。</p>
     </section>
     <section class="sec"><h3>打刻の記録<span class="sp"></span><button class="btn sm" data-act="timeAdd">＋ 手入力で追加</button></h3>
@@ -1250,6 +1265,44 @@ const timeRows = () => {
 };
 A.timeCSV = () => saveFile(`出勤簿_${S.month}.csv`, toCSV(timeRows()));
 A.timePrint = () => printTable(`出勤簿_${S.month}.html`, `出勤簿　${ymLabel(S.month)}`, timeRows(), { n: [4, 5, 6, 7], note: '労働基準法で保存が必要な帳簿です（法定三帳簿のひとつ）。' });
+
+/* ---- 1人ずつの出勤簿（A4・1人1枚） ---- */
+function timeSheetHTML(sid) {
+  const set = SET(); const s = Store.get('staff', sid) || { name: staffName(sid) };
+  const recs = L('time', S.month).filter(t => t.staff === sid).sort(byDate);
+  const byDay = groupBy(recs, t => t.date);
+  const sm = monthTime(S.month, L('time', S.month))[sid] || { days: 0, work: 0, ot: 0, night: 0 };
+  const rows = monthDays(S.month).map(d => {
+    const list = byDay[d] || []; const w = dowN(d);
+    const sh = w === 0 || w === 6 ? ' style="background:#f4f4f4"' : '';
+    if (!list.length) return `<tr${sh}><td class="n">${Number(d.slice(8))}</td><td>${DOW[w]}</td><td colspan="7" style="color:#bbb">—</td></tr>`;
+    return list.map((t, i) => {
+      const c = timeCalc(t) || {};
+      return `<tr${sh}><td class="n">${i ? '' : Number(d.slice(8))}</td><td>${i ? '' : DOW[w]}</td><td>${m2hm(t.in)}</td><td>${t.out != null ? m2hm(t.out < t.in ? t.out + 1440 : t.out) : ''}</td><td class="n">${c.brk != null ? c.brk : ''}</td><td class="n">${c.open ? '' : hrs(c.work)}</td><td class="n">${c.ot ? hrs(c.ot) : ''}</td><td class="n">${c.night ? hrs(c.night) : ''}</td><td>${esc((t.edited ? '[修正] ' : '') + (t.note || ''))}</td></tr>`;
+    }).join('');
+  }).join('');
+  return `<h1>出勤簿　${esc(ymLabel(S.month))}</h1>
+  <div class="meta">${esc(set.shop || set.trade || '')}　氏名：<b style="font-size:12pt">${esc(s.name)}</b>　${esc(s.empType || '')}${s.hired ? '　雇入 ' + esc(s.hired) : ''}</div>
+  <table class="sum"><tr><th>出勤日数</th><td>${sm.days}日</td><th>実働時間</th><td>${hrs(sm.work)}h</td><th>法定時間外</th><td>${hrs(sm.ot)}h</td><th>深夜(22〜5時)</th><td>${hrs(sm.night)}h</td></tr></table>
+  <table><thead><tr><th class="n">日</th><th>曜</th><th>出勤</th><th>退勤</th><th class="n">休憩(分)</th><th class="n">実働(h)</th><th class="n">時間外(h)</th><th class="n">深夜(h)</th><th>備考</th></tr></thead><tbody>${rows}</tbody></table>
+  <div class="sign">上記のとおり相違ありません。　本人<span class="box"></span>　責任者<span class="box"></span></div>`;
+}
+const TIME_SHEET_CSS = `.meta{font-size:10pt;margin-bottom:3mm}
+table.sum{width:auto;margin:0 0 3mm}table.sum th{background:#eee;white-space:nowrap}table.sum td{text-align:right;padding:2px 8px;white-space:nowrap}
+table{font-size:8.6pt}th,td{padding:1.6px 4px}td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+.sign{margin-top:4mm;font-size:9.5pt}.sign .box{display:inline-block;width:22mm;height:11mm;border:1px solid #999;vertical-align:middle;margin:0 8mm 0 2mm}
+.pg{break-after:page}.pg:last-child{break-after:auto}`;
+function timePrintPeople(ids, file, title) {
+  saveFile(file, printDoc(title, ids.map(id => `<section class="pg">${timeSheetHTML(id)}</section>`).join(''), TIME_SHEET_CSS));
+}
+A.timePrintOne = el => { const s = Store.get('staff', el.dataset.id) || {}; timePrintPeople([el.dataset.id], `出勤簿_${S.month}_No${el.dataset.no || 1}_${s.name || ''}.html`, `出勤簿 ${s.name || ''} ${ymLabel(S.month)}`); };
+A.timePrintAll = () => {
+  const sm = monthTime(S.month, L('time', S.month));
+  const ids = staffAll().filter(s => sm[s.id]).map(s => s.id);
+  if (!ids.length) { toast('この月の勤怠記録がありません'); return; }
+  timePrintPeople(ids, `出勤簿_全員_${S.month}.html`, `出勤簿 ${ymLabel(S.month)}`);
+  toast(`${ids.length}人ぶん（1人1枚）を保存しました`);
+};
 
 /* ---------- シフト表 ---------- */
 const legalBreak = d => d > 480 ? 60 : d > 360 ? 45 : 0;
@@ -1790,6 +1843,54 @@ const cashTableRows = async () => {
 A.cashCSV = async () => saveFile(`小口現金出納帳_${S.month}.csv`, toCSV(await cashTableRows()));
 A.cashPrint = async () => printTable(`小口現金出納帳_${S.month}.html`, `小口現金出納帳　${ymLabel(S.month)}`, await cashTableRows(), { foot: true, n: [3, 4, 5], note: '経費帳・仕入帳で支払方法を「小口現金」にした取引も含みます。月末の残高と、実際の手元現金が合うか確認してください。' });
 
+/* ---------- 売上小銭出納帳 ---------- */
+const COIN_KINDS = ['売上小銭', '両替'];
+const F_COIN = [
+  { k: 'date', label: '日付', type: 'date', req: true },
+  { k: 'kind', label: '区分', type: 'select', opts: COIN_KINDS, def: '売上小銭', hint: '「売上小銭」は手元が増える、「両替」は銀行に持って行って減る' },
+  { k: 'amount', label: '金額', type: 'money', req: true },
+  { k: 'desc', label: '摘要', full: true, ph: '空欄なら「売上小銭　売上（金額）」のように自動で入ります' },
+  { k: 'payee', label: '取引先', list: () => [SET().shop || '', ...suppliers().map(s => s.name)].filter(Boolean) },
+  { k: 'note', label: 'メモ', full: true },
+];
+const coinDesc = v => v.desc || (v.kind === '両替' ? `両替＋売上入金済み（${int(num(v.amount))}）` : `売上小銭　売上（${int(num(v.amount))}）`);
+const coinCrud = crud({ key: v => MK('coin', ymOf(v.date)), fields: F_COIN, title: '売上小銭', defaults: { kind: '売上小銭' }, afterSave: () => { S.cache = {}; } });
+A.coinAdd = el => coinCrud.add({ date: today(), kind: el && el.dataset && el.dataset.k === 'ex' ? '両替' : '売上小銭', payee: SET().shop || '' });
+A.coinEdit = el => coinCrud.edit(Store.get(MK('coin', S.month), el.dataset.id));
+const coinList = () => L('coin', S.month).sort(byDate);
+P.coin = {
+  month: true,
+  keys: () => [MK('coin', S.month)],
+  render() {
+    const ck = 'coin_' + S.month;
+    if (S.cache[ck] === undefined) { S.cache[ck] = null; coinCarry(S.month).then(v => { S.cache[ck] = v; render(); }); }
+    const carry = S.cache[ck];
+    const list = coinList(); let bal = num(carry);
+    const tin = sum(list, coinIn), tout = sum(list, coinOut);
+    const rows = list.map((r, i) => {
+      bal += coinIn(r) - coinOut(r);
+      return `<tr class="click${r.kind === '両替' ? ' ex' : ''}" data-act="coinEdit" data-id="${esc(r.id)}"><td class="n muted">${i + 1}</td><td>${dLabel(r.date)}</td><td class="wrap">${esc(coinDesc(r))}</td><td>${esc(r.payee || '')}</td><td class="n">${coinIn(r) ? yen(coinIn(r)) : ''}</td><td class="n">${coinOut(r) ? yen(coinOut(r)) : ''}</td><td class="n"><b class="${bal < 0 ? 'pill bad' : ''}">${yen(bal)}</b></td></tr>`;
+    }).join('');
+    return `<div class="stats">${stat('前月繰越', carry == null ? '計算中…' : yen(carry))}${stat('売上小銭（入）', yen(tin), list.filter(r => r.kind !== '両替').length + '件')}${stat('両替（出）', yen(tout), list.filter(r => r.kind === '両替').length + '件')}${stat('差引残高', carry == null ? '…' : yen(num(carry) + tin - tout), '手元の小銭と合うか確認')}</div>
+    <div class="toolbar"><button class="btn primary" data-act="coinAdd">＋ 売上小銭（入）</button><button class="btn" data-act="coinAdd" data-k="ex">＋ 両替（出）</button><span class="sp"></span><button class="btn" data-act="coinCSV">CSV保存</button><button class="btn" data-act="coinPrint">A4の印刷用に保存</button></div>
+    ${list.length ? `<div class="tw"><table class="tbl"><thead><tr><th class="n">NO</th><th>日</th><th>摘要</th><th>取引先</th><th class="n">売上小銭</th><th class="n">両替</th><th class="n">差引残高</th></tr></thead>
+    <tbody><tr class="dim"><td></td><td>${dLabel(S.month + '-01')}</td><td>前月繰越</td><td></td><td></td><td></td><td class="n">${yen(carry)}</td></tr>${rows}</tbody>
+    <tfoot><tr><td colspan="4">合計</td><td class="n">${yen(tin)}</td><td class="n">${yen(tout)}</td><td class="n">${carry == null ? '' : yen(num(carry) + tin - tout)}</td></tr></tfoot></table></div>`
+        : emptyBox(ymLabel(S.month) + 'の記帳はまだありません', 'レジに貯まった小銭（売上）と、銀行での両替・入金を記録します', '<button class="btn primary" data-act="coinAdd">＋ 売上小銭（入）</button>')}
+    <p class="hint">日報の現金売上のうち、手元に貯まる小銭を記録する帳面です。「両替」で銀行に持って行った分だけ減ります。開始残高は「設定」の「売上小銭の開始残高・開始月」で決めます。</p>`;
+  }
+};
+const coinRows = async () => {
+  const carry = await coinCarry(S.month); let bal = num(carry);
+  const list = coinList();
+  return [['NO', '日', '摘要', '取引先', '売上小銭', '両替', '差引残高'],
+    ['', S.month + '-01', '前月繰越', '', '', '', Math.round(num(carry))],
+    ...list.map((r, i) => { bal += coinIn(r) - coinOut(r); return [i + 1, r.date, coinDesc(r), r.payee || '', coinIn(r) || '', coinOut(r) || '', Math.round(bal)]; }),
+    ['合計', '', '', '', sum(list, coinIn), sum(list, coinOut), Math.round(bal)]];
+};
+A.coinCSV = async () => saveFile(`売上小銭出納帳_${S.month}.csv`, toCSV(await coinRows()));
+A.coinPrint = async () => printTable(`売上小銭出納帳_${S.month}.html`, `売上小銭現金出納表　${ymLabel(S.month)}`, await coinRows(), { foot: true, n: [0, 4, 5, 6], count: coinList().length, note: '「売上小銭」は手元に入った小銭、「両替」は銀行へ持って行って減った分です。月末の差引残高と、実際の手元の小銭が合うか確認してください。' });
+
 /* ---------- 経費帳 ---------- */
 const F_EXP = [
   { k: 'date', label: '日付', type: 'date', req: true },
@@ -2055,7 +2156,8 @@ const F_SET = [
   { k: 'shop', label: '店名' }, { k: 'trade', label: '屋号' }, { k: 'owner', label: '代表者名' }, { k: 'tel', label: '電話番号' },
   { k: 'addr', label: '所在地', full: true }, { k: 'invoiceNo', label: '適格請求書発行事業者 登録番号', ph: 'T＋13桁（未登録なら空欄）' }, { k: 'openDate', label: '開業日', type: 'date' },
   { k: 'float', label: 'レジ釣銭準備金', type: 'money' }, { k: 'cashStart', label: '小口現金の開始残高', type: 'money' },
-  { k: 'cashStartMonth', label: '小口現金の開始月', type: 'month' }, { k: 'invStart', label: '期首商品棚卸高（開業年）', type: 'money' },
+  { k: 'cashStartMonth', label: '小口現金の開始月', type: 'month' },
+  { k: 'coinStart', label: '売上小銭の開始残高', type: 'money', hint: '売上小銭出納帳のいちばん最初の繰越額' }, { k: 'coinStartMonth', label: '売上小銭の開始月', type: 'month' }, { k: 'invStart', label: '期首商品棚卸高（開業年）', type: 'money' },
   { k: 'weekLimit', label: '週の法定労働時間', type: 'select', opts: [{ v: 40, l: '40時間' }, { v: 44, l: '44時間（常時10人未満の飲食店＝特例措置対象事業場）' }] },
   { k: 'reportMail', label: '日報の送信先メール', type: 'email', hint: '「保存して送信」で、この宛先のメールが作成されます' },
   { k: 'payday', label: '給料日（翌月の日付）', type: 'num' }, { k: 'monthlyHours', label: '月給者の月所定労働時間（標準）', type: 'num' },
