@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-RgGQl/TqiAEi4YJKbpWHVZRY7hBfD8YHbxDLB4Om620='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data: blob: https://tzmptqweehooidklvhpv.supabase.co; object-src https://tzmptqweehooidklvhpv.supabase.co; base-uri 'none'; form-action 'none'; manifest-src 'self'"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="のどぐろ家姫川"><meta name="theme-color" content="#23467A"></head><body>
+<html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-Ogx3fO0MxST7w+KN2QNix9YsIXXLKyIY6tUIIOsQk2k='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data: blob: https://tzmptqweehooidklvhpv.supabase.co; object-src https://tzmptqweehooidklvhpv.supabase.co; base-uri 'none'; form-action 'none'; manifest-src 'self'"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="のどぐろ家姫川"><meta name="theme-color" content="#23467A"></head><body>
 <title>のどぐろ家姫川</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -117,6 +117,7 @@ table.tbl{border-collapse:collapse;width:100%;font-size:14px}
 .note-box{border-left:3px solid var(--accent);background:var(--accent-soft);padding:10px 14px;border-radius:0 8px 8px 0;font-size:13.5px;margin-bottom:16px}
 .note-box.warn{border-color:var(--warn);background:var(--warn-soft)}
 .note-box.ok{border-color:var(--ok);background:var(--ok-soft)}
+.tbl tr.grp td{background:var(--surface2);font-weight:700}
 .note-box.bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .note-box.bar>.sp{flex:1 1 240px}
 .note-box.bar .small{color:var(--muted)}
@@ -545,13 +546,13 @@ function printTable(file, title, rows, opts = {}) {
   const cell = (c, i, tag) => `<${tag}${nums.includes(i) ? ' class="n"' : ''}>${fmt(c)}</${tag}>`;
   const foot = opts.foot ? body.pop() : null;
   const html = `<h1>${esc(title)}</h1>
-    <div class="meta">${esc(set.shop || set.trade || '')}${opts.meta ? '　' + esc(opts.meta) : ''}　${body.length}件　印刷日 ${today()}</div>
+    <div class="meta">${esc(set.shop || set.trade || '')}${opts.meta ? '　' + esc(opts.meta) : ''}　${opts.count != null ? opts.count : body.length}件　印刷日 ${today()}</div>
     <table><thead><tr>${head.map((c, i) => cell(c, i, 'th')).join('')}</tr></thead>
-    <tbody>${body.map(r => `<tr>${r.map((c, i) => cell(c, i, 'td')).join('')}</tr>`).join('')}</tbody>
+    <tbody>${body.map(r => `<tr${/小計|合計/.test(String(r[0] ?? '')) ? ' class="sub"' : ''}>${r.map((c, i) => cell(c, i, 'td')).join('')}</tr>`).join('')}</tbody>
     ${foot ? `<tfoot><tr>${foot.map((c, i) => cell(c, i, 'th')).join('')}</tr></tfoot>` : ''}</table>
     ${opts.note ? `<p style="font-size:8.5pt">${esc(opts.note)}</p>` : ''}`;
   saveFile(file, printDoc(title, html,
-    `${opts.land ? '@page{size:A4 landscape;margin:10mm}' : ''}table{font-size:${opts.fs || '9pt'}}th,td{padding:2px 4px}tfoot th{background:#eee}td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}tr{break-inside:avoid}thead{display:table-header-group}`));
+    `${opts.land ? '@page{size:A4 landscape;margin:10mm}' : ''}table{font-size:${opts.fs || '9pt'}}th,td{padding:2px 4px}tfoot th{background:#eee}tr.sub td{background:#f1f1f1;font-weight:700}td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}tr{break-inside:avoid}thead{display:table-header-group}`));
 }
 
 /* ===================== Supabase 接続（ライブラリ不使用・REST直接） ===================== */
@@ -1465,24 +1466,49 @@ A.orderRecv = async el => {
 };
 
 /* ---------- 棚卸 ---------- */
+const INV_GRPS = ['鮮魚', '食材', '酒', '備品'];
+// 食材マスタの分類から大分類を推測する
+const GRP_MAP = { '魚介': '鮮魚', '鮮魚': '鮮魚', '肉': '食材', '野菜': '食材', '乾物': '食材', '調味料': '食材', '米・粉': '食材', '乳製品': '食材', '冷凍食品': '食材', '酒類': '酒', '飲料': '酒', '消耗品': '備品', '包材': '備品' };
+function invGrp(r) {
+  if (INV_GRPS.includes(r.grp)) return r.grp;
+  if (GRP_MAP[r.cat]) return GRP_MAP[r.cat];
+  const n = String(r.name || '') + String(r.cat || '');
+  if (/魚|貝|えび|エビ|海老|かに|カニ|蟹|いか|イカ|たこ|タコ|のどぐろ|鮮/.test(n)) return '鮮魚';
+  if (/酒|ビール|ワイン|焼酎|サワー|ハイボール|ドリンク|ジュース|茶$/.test(n)) return '酒';
+  if (/箸|袋|紙|洗剤|おしぼり|ラップ|容器|食器|備品|消耗|タオル|手袋/.test(n)) return '備品';
+  return '食材';
+}
+const invAmt = r => num(r.qty) * num(r.price);
+const invSorted = () => L('inv', S.month).sort((a, b) =>
+  (INV_GRPS.indexOf(invGrp(a)) - INV_GRPS.indexOf(invGrp(b))) ||
+  String(a.cat || '').localeCompare(String(b.cat || ''), 'ja') ||
+  String(a.name).localeCompare(String(b.name), 'ja'));
 P.inv = {
   month: true,
   keys: () => [MK('inv', S.month), MK('close', S.month), 'items'],
   render() {
-    const list = L('inv', S.month).sort((a, b) => String(a.cat || '').localeCompare(String(b.cat || ''), 'ja') || String(a.name).localeCompare(String(b.name), 'ja'));
-    const tot = sum(list, r => num(r.qty) * num(r.price));
+    const list = invSorted();
+    const byG = groupBy(list, invGrp);
+    const tot = sum(list, invAmt);
     const isDec = S.month.endsWith('-12');
-    return `<div class="stats">${stat(ymLabel(S.month) + '末 棚卸高', yen(tot), isDec ? '＝この年の期末棚卸高（確定申告）' : '')}${stat('品目数', list.length)}${stat('入力済み', list.filter(r => r.qty !== '' && r.qty != null).length + ' / ' + list.length)}</div>
+    const done = list.filter(r => r.qty !== '' && r.qty != null).length;
+    const rows = INV_GRPS.filter(g => byG[g]).map(g => {
+      const sub = sum(byG[g], invAmt);
+      return `<tr class="grp"><td colspan="7"><b>${esc(g)}</b>　<span class="muted small">${byG[g].length}品目</span><span style="float:right"><b>${yen(sub)}</b></span></td></tr>` +
+        byG[g].map(r => `<tr><td><select data-chg="invGrpSet" data-id="${esc(r.id)}" style="min-width:5.5em" aria-label="大分類">${opts(INV_GRPS, invGrp(r))}</select></td><td><b>${esc(r.name)}</b>${r.cat ? `<br><span class="muted small">${esc(r.cat)}</span>` : ''}</td><td>${esc(r.unit || '')}</td><td class="n">${num(r.price) % 1 ? '¥' + num(r.price).toFixed(2) : yen(r.price)}</td><td class="n" style="width:110px"><input id="iq_${esc(r.id)}" type="number" inputmode="decimal" value="${esc(r.qty ?? '')}" data-chg="invQty" data-id="${esc(r.id)}"></td><td class="n" id="ia_${esc(r.id)}">${yen(invAmt(r))}</td><td><button class="btn sm" data-act="invDel" data-id="${esc(r.id)}">除く</button></td></tr>`).join('');
+    }).join('');
+    return `<div class="stats">${stat(ymLabel(S.month) + '末 棚卸高', yen(tot), `${list.length}品目中 ${done}品目を入力済み${isDec ? '／この年の期末棚卸高' : ''}`)}${INV_GRPS.map(g => stat(g, yen(sum(byG[g] || [], invAmt)), (byG[g] || []).length + '品目')).join('')}</div>
     ${isDec ? '<div class="note-box">12月末の棚卸高は、青色申告決算書の「期末商品（製品）棚卸高」になります。売れ残った食材・酒類を数えて入力してください。</div>' : ''}
     ${closeBar('inv', S.month)}
     <div class="toolbar"><button class="btn primary" data-act="invCopy">前月からコピー</button><button class="btn" data-act="invFill">食材マスタから一覧を作る</button><button class="btn" data-act="invAdd">＋ 品目を追加</button><span class="sp"></span><button class="btn" data-act="invCSV">棚卸表CSV</button><button class="btn" data-act="invPrint">A4の印刷用に保存</button></div>
-    ${list.length ? `<div class="tw"><table class="tbl"><thead><tr><th>分類</th><th>品目</th><th>単位</th><th class="n">単価（税抜）</th><th class="n">数量</th><th class="n">金額</th><th></th></tr></thead><tbody>${list.map(r => `<tr><td class="muted">${esc(r.cat || '')}</td><td><b>${esc(r.name)}</b></td><td>${esc(r.unit || '')}</td><td class="n">${num(r.price) % 1 ? '¥' + num(r.price).toFixed(2) : yen(r.price)}</td><td class="n" style="width:110px"><input id="iq_${esc(r.id)}" type="number" inputmode="decimal" value="${esc(r.qty ?? '')}" data-chg="invQty" data-id="${esc(r.id)}"></td><td class="n" id="ia_${esc(r.id)}">${yen(num(r.qty) * num(r.price))}</td><td><button class="btn sm" data-act="invDel" data-id="${esc(r.id)}">除く</button></td></tr>`).join('')}</tbody><tfoot><tr><td colspan="5">合計</td><td class="n">${yen(tot)}</td><td></td></tr></tfoot></table></div>`
+    ${list.length ? `<div class="tw"><table class="tbl"><thead><tr><th>大分類</th><th>品目</th><th>単位</th><th class="n">単価（税抜）</th><th class="n">数量</th><th class="n">金額</th><th></th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="5">合計</td><td class="n">${yen(tot)}</td><td></td></tr></tfoot></table></div>
+    <p class="hint">大分類はその場で選び直せます（鮮魚・食材・酒・備品）。食材マスタから作った品目は分類から自動でふり分けています。</p>`
         : emptyBox('この月の棚卸はまだありません', '前月と同じ品目で数えるなら「前月からコピー」、初めてなら「食材マスタから一覧を作る」', '<button class="btn primary" data-act="invCopy">前月からコピー</button> <button class="btn" data-act="invFill">食材マスタから一覧を作る</button>')}`;
   }
 };
 A.invFill = async () => {
   const key = MK('inv', S.month); const have = new Set(L('inv', S.month).map(r => r.item));
-  let n = 0; for (const it of items()) { if (have.has(it.id)) continue; await Store.put(key, it.id, { item: it.id, name: it.name, cat: it.cat || '', unit: it.unit || '', price: num(it.price), qty: '' }); n++; }
+  let n = 0; for (const it of items()) { if (have.has(it.id)) continue; const rec = { item: it.id, name: it.name, cat: it.cat || '', unit: it.unit || '', price: num(it.price), qty: '' }; rec.grp = invGrp(rec); await Store.put(key, it.id, rec); n++; }
   toast(n ? n + '品目を追加しました' : '追加する品目はありません（食材マスタを確認）');
 };
 A.invCopy = async () => {
@@ -1494,17 +1520,33 @@ A.invCopy = async () => {
   for (const r of src) {
     if (have.has(r.item || r.name)) continue;
     const it = r.item ? itemById(r.item) : null; // 単価は食材マスタが新しければそちらを使う
-    const rec = { item: r.item || '', name: r.name, cat: r.cat || '', unit: r.unit || (it ? it.unit : ''), price: it ? num(it.price) : num(r.price), qty: '' };
+    const rec = { item: r.item || '', name: r.name, cat: r.cat || '', grp: invGrp(r), unit: r.unit || (it ? it.unit : ''), price: it ? num(it.price) : num(r.price), qty: '' };
     await Store.put(key, r.item || uid(), rec); n++;
   }
   toast(n ? `${ymLabel(prev)}から${n}品目をコピーしました（数量は空欄）` : 'コピーする品目はありません（すでに入っています）');
 };
-A.invAdd = () => openForm({ title: '棚卸品目を追加', fields: [{ k: 'name', label: '品目', req: true }, { k: 'cat', label: '分類' }, { k: 'unit', label: '単位' }, { k: 'price', label: '単価（税抜）', type: 'money' }, { k: 'qty', label: '数量', type: 'num' }], onSave: async v => { await Store.put(MK('inv', S.month), uid(), v); } });
+A.invAdd = () => openForm({
+  title: '棚卸品目を追加',
+  fields: [{ k: 'grp', label: '大分類', type: 'select', opts: INV_GRPS, def: '食材' }, { k: 'name', label: '品目', req: true }, { k: 'cat', label: '分類（細かい内訳・任意）', ph: '例：魚介・乾物・酒類' }, { k: 'unit', label: '単位' }, { k: 'price', label: '単価（税抜）', type: 'money' }, { k: 'qty', label: '数量', type: 'num' }],
+  value: { grp: '食材' },
+  onSave: async v => { await Store.put(MK('inv', S.month), uid(), v); },
+});
 A.invDel = async el => { await Store.put(MK('inv', S.month), el.dataset.id, null); };
 CHG.invQty = async el => { const r = Store.get(MK('inv', S.month), el.dataset.id); if (!r) return; const a = $('#ia_' + r.id); if (a) a.textContent = yen(num(el.value) * num(r.price)); await Store.put(MK('inv', S.month), r.id, { ...r, qty: el.value === '' ? '' : num(el.value) }); };
-const invRows = () => { const list = L('inv', S.month).sort((a, b) => String(a.cat || '').localeCompare(String(b.cat || ''), 'ja') || String(a.name).localeCompare(String(b.name), 'ja')); return [['分類', '品目', '単位', '単価(税抜)', '数量', '金額'], ...list.map(r => [r.cat, r.name, r.unit, num(r.price), r.qty, Math.round(num(r.qty) * num(r.price))]), ['合計', '', '', '', '', Math.round(sum(list, r => num(r.qty) * num(r.price)))]]; };
+CHG.invGrpSet = async el => { const r = Store.get(MK('inv', S.month), el.dataset.id); if (!r) return; await Store.put(MK('inv', S.month), r.id, { ...r, grp: el.value }); };
+const invRows = () => {
+  const list = invSorted(); const byG = groupBy(list, invGrp);
+  const out = [['大分類', '品目', '分類', '単位', '単価(税抜)', '数量', '金額']];
+  for (const g of INV_GRPS) {
+    if (!byG[g]) continue;
+    for (const r of byG[g]) out.push([g, r.name, r.cat || '', r.unit || '', num(r.price), r.qty, Math.round(invAmt(r))]);
+    out.push([g + ' 小計', '', '', '', '', '', Math.round(sum(byG[g], invAmt))]);
+  }
+  out.push(['合計', '', '', '', '', '', Math.round(sum(list, invAmt))]);
+  return out;
+};
 A.invCSV = () => saveFile(`棚卸表_${S.month}.csv`, toCSV(invRows()));
-A.invPrint = () => printTable(`棚卸表_${S.month}.html`, `棚卸表　${ymLabel(S.month)}末`, invRows(), { foot: true, n: [3, 4, 5], note: '12月末の金額が、青色申告決算書の「期末商品（製品）棚卸高」になります。数えた人・日付を欄外に手書きで残しておくと確実です。' });
+A.invPrint = () => printTable(`棚卸表_${S.month}.html`, `棚卸表　${ymLabel(S.month)}末`, invRows(), { foot: true, n: [4, 5, 6], count: L('inv', S.month).length, note: '大分類ごとの小計つき。12月末の合計が、青色申告決算書の「期末商品（製品）棚卸高」になります。数えた人・日付を欄外に手書きで残しておくと確実です。' });
 
 /* ---------- 廃棄ロス ---------- */
 const F_WASTE = [
