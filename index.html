@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-3eheHm6ReKsfYnK0cRCdiyKIPhfe7kQAI86dpFjICm8='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data: blob: https://tzmptqweehooidklvhpv.supabase.co; object-src https://tzmptqweehooidklvhpv.supabase.co; base-uri 'none'; form-action 'none'; manifest-src 'self'"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="のどぐろ家姫川"><meta name="theme-color" content="#23467A"></head><body>
+<html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-OPAWKkhitI80A+KCODD/QRI5dnP/HdjSvgAPUTNPxq0='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data: blob: https://tzmptqweehooidklvhpv.supabase.co; object-src https://tzmptqweehooidklvhpv.supabase.co; base-uri 'none'; form-action 'none'; manifest-src 'self'"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="のどぐろ家姫川"><meta name="theme-color" content="#23467A"></head><body>
 <title>のどぐろ家姫川</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -510,7 +510,7 @@ function confirmDel(extra) { // 2回押しで削除（ダイアログを使わ�
 /* ---- ファイル保存（CSV/HTML） ---- */
 const csvCell = v => { let s = String(v ?? ''); if (typeof v !== 'number' && /^[=+\-@\t\r]/.test(s)) s = "'" + s; /* 表計算ソフトの数式実行を防ぐ */ return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
 const toCSV = rows => '﻿' + rows.map(r => r.map(csvCell).join(',')).join('\r\n');
-const FN_MAP = [['ウメダ在庫一覧', 'umeda-stock-list'], ['相場表', 'market-prices'], ['衛生管理記録', 'hygiene-log'], ['小口現金出納帳', 'petty-cash'], ['固定資産台帳', 'fixed-assets'], ['労働者名簿', 'staff-register'], ['賃金台帳', 'wage-ledger'], ['アレルゲン表', 'allergens'], ['給与明細', 'payslip'], ['月別集計', 'monthly-summary'], ['バックアップ', '_backup'], ['のどぐろ家姫川', 'nodoguro-himekawa'], ['シフト表', 'shift'], ['仕訳帳', 'journal'], ['仕入帳', 'purchases'], ['経費帳', 'expenses'], ['出勤簿', 'attendance'], ['棚卸表', 'inventory'], ['原価表', 'recipe-costs'], ['メニュー', 'menu'], ['日報', 'daily-report']];
+const FN_MAP = [['売上日計表', 'daily-sales'], ['ウメダ在庫一覧', 'umeda-stock-list'], ['相場表', 'market-prices'], ['衛生管理記録', 'hygiene-log'], ['小口現金出納帳', 'petty-cash'], ['固定資産台帳', 'fixed-assets'], ['労働者名簿', 'staff-register'], ['賃金台帳', 'wage-ledger'], ['アレルゲン表', 'allergens'], ['給与明細', 'payslip'], ['月別集計', 'monthly-summary'], ['バックアップ', '_backup'], ['のどぐろ家姫川', 'nodoguro-himekawa'], ['シフト表', 'shift'], ['仕訳帳', 'journal'], ['仕入帳', 'purchases'], ['経費帳', 'expenses'], ['出勤簿', 'attendance'], ['棚卸表', 'inventory'], ['原価表', 'recipe-costs'], ['メニュー', 'menu'], ['日報', 'daily-report']];
 function asciiName(fn) { // 一部のブラウザは日本語のファイル名を無視するため英数字に置き換える
   let s = fn; for (const [j, e] of FN_MAP) s = s.split(j).join(e);
   const m = s.match(/\.[a-z0-9]+$/i); const ext = m ? m[0] : ''; let base = ext ? s.slice(0, -ext.length) : s;
@@ -711,7 +711,7 @@ const NAV = [
   { g: '労務', items: [['time', 'タイムカード'], ['shift', 'シフト表'], ['pay', '給与・賃金台帳'], ['staff', 'スタッフ名簿']] },
   { g: '仕入・在庫', items: [['purch', '仕入帳'], ['order', '発注'], ['inv', '棚卸'], ['waste', '廃棄ロス'], ['items', '食材マスタ'], ['suppliers', '取引先']] },
   { g: 'メニュー', items: [['recipes', 'レシピ・原価'], ['allergen', 'アレルゲン表'], ['menu', 'メニュー制作']] },
-  { g: '経理・申告', items: [['cash', '小口現金出納帳'], ['exp', '経費帳'], ['arap', '売掛・買掛'], ['fixed', '固定資産台帳'], ['annual', '年間集計・CSV']] },
+  { g: '経理・申告', items: [['sales', '売上日計表'], ['cash', '小口現金出納帳'], ['exp', '経費帳'], ['arap', '売掛・買掛'], ['fixed', '固定資産台帳'], ['annual', '年間集計・CSV']] },
   { g: '卸・販売', items: [['umeda', 'ウメダ在庫一覧'], ['souba', '相場表']] },
   { g: '', items: [['settings', '設定・バックアップ']] },
 ];
@@ -1395,7 +1395,7 @@ P.order = {
     <div class="row" style="margin-top:12px"><button class="btn primary big" data-act="orderMake">発注書をつくる</button><span class="muted small">LINE・メール・FAX用の文面を作成し、履歴に残します</span></div>`
         : emptyBox('この取引先の食材がありません', '「食材マスタ」で仕入先を設定すると、ここに並びます', '<button class="btn primary" data-go="items">食材マスタへ</button>')}
     <section class="sec" style="margin-top:26px"><h3>発注履歴（今月・先月）</h3>
-      ${hist.length ? `<div class="tw"><table class="tbl"><thead><tr><th>日付</th><th>発注先</th><th>内容</th><th>状態</th><th></th></tr></thead><tbody>${hist.map(o => `<tr><td>${dLabel(o.date)}</td><td>${esc(supName(o.supplier))}</td><td class="wrap small">${esc((o.lines || []).length ? (o.lines || []).map(l => (itemById(l.item) || { name: l.name }).name + ' ' + l.qty + (l.unit || '')).join('、') : (o.note || ''))}${o.src === 'daily' ? ' <span class="pill acc">日報から</span>' : ''}${o.due ? ` <span class="small muted">納品${dLabel(o.due)}</span>` : ''}</td><td>${o.status === '納品済' ? '<span class="pill ok">納品済</span>' : '<span class="pill acc">発注済</span>'}</td><td class="row" style="flex-wrap:nowrap"><button class="btn sm" data-act="orderText" data-id="${esc(o.id)}" data-ym="${esc(ymOf(o.date))}">文面</button>${o.status !== '納品済' ? `<button class="btn sm" data-act="orderRecv" data-id="${esc(o.id)}" data-ym="${esc(ymOf(o.date))}">納品→仕入帳へ</button>` : ''}</td></tr>`).join('')}</tbody></table></div>` : emptyBox('発注履歴はありません', '')}
+      ${hist.length ? `<div class="tw"><table class="tbl"><thead><tr><th>日付</th><th>発注先</th><th>内容</th><th>状態</th><th></th></tr></thead><tbody>${hist.map(o => `<tr><td>${dLabel(o.date)}</td><td>${esc(supName(o.supplier))}</td><td class="wrap small">${esc((o.lines || []).length ? (o.lines || []).map(l => (itemById(l.item) || { name: l.name }).name + ' ' + l.qty + (l.unit || '')).join('、') : (o.note || ''))}${o.src === 'daily' ? ' <span class="pill acc">日報から</span>' : ''}${o.due ? ` <span class="small muted">納品${dLabel(o.due)}</span>` : ''}</td><td>${o.status === '納品済' ? '<span class="pill ok">納品済</span>' : '<span class="pill acc">発注済</span>'}</td><td class="row" style="flex-wrap:nowrap"><button class="btn sm" data-act="orderText" data-id="${esc(o.id)}" data-ym="${esc(ymOf(o.date))}">文面</button>${o.status !== '納品済' ? `<button class="btn sm" data-act="orderRecv" data-id="${esc(o.id)}" data-ym="${esc(ymOf(o.date))}">納品→仕入帳へ</button>` : ''}<button class="btn sm danger" data-act="orderDel" data-id="${esc(o.id)}" data-ym="${esc(ymOf(o.date))}">削除</button></td></tr>`).join('')}</tbody></table></div>` : emptyBox('発注履歴はありません', '')}
     </section>`;
   }
 };
@@ -1418,6 +1418,12 @@ A.orderMake = async () => {
   showText('発注文面', orderText(o));
 };
 A.orderText = el => showText('発注文面', orderText(Store.get(MK('order', el.dataset.ym), el.dataset.id)));
+A.orderDel = async el => { // 発注履歴を消す（仕入帳の記帳は消さない）
+  const key = MK('order', el.dataset.ym), o = Store.get(key, el.dataset.id); if (!o) return;
+  if (!confirmDel(`（${supName(o.supplier)}・${dLabel(o.date)}${o.status === '納品済' ? '／仕入帳の記帳は残ります' : ''}）`)) return;
+  await Store.put(key, el.dataset.id, null);
+  toast('発注履歴を削除しました' + (o.src === 'daily' ? '（日報の発注欄からも消えます）' : ''));
+};
 A.orderRecv = async el => {
   const o = Store.get(MK('order', el.dataset.ym), el.dataset.id); if (!o) return;
   let a8 = 0, a10 = 0; for (const l of o.lines || []) { const it = itemById(l.item); if (!it) continue; const v = num(it.price) * num(l.qty) * (num(it.tax) === 10 ? 1.1 : 1.08); if (num(it.tax) === 10) a10 += v; else a8 += v; }
@@ -1798,6 +1804,64 @@ P.fixed = {
   }
 };
 A.fixedCSV = () => saveFile(`固定資産台帳_${S.year}.csv`, toCSV([['名称', '数量', '勘定科目', '取得日', '取得価額', '償却方法', '耐用年数', '期首帳簿価額', '本年償却費', '事業専用割合', '本年必要経費算入額', '期末帳簿価額'], ...Store.list('fixed').sort(byDate).map(a => { const d = deprSchedule(a, S.year); return [a.name, a.qty, a.account, a.date, num(a.cost), a.method, a.life, d.open, d.dep, (a.ratio === '' || a.ratio == null ? 100 : a.ratio) + '%', d.biz, d.close]; })]));
+
+/* ---------- 売上日計表（税理士提出用） ---------- */
+const cashOf = r => { const s = num(r.cashLunch) + num(r.cashDinner); return s || num(r.cash); };
+const SALES_COLS = [
+  ['現金（ランチ）', r => num(r.cashLunch)],
+  ['現金（ディナー）', r => num(r.cashDinner)],
+  ['現金 計', cashOf],
+  ['カード', r => num(r.card)],
+  ['QR・電子マネー', r => num(r.qr)],
+  ['その他（掛売等）', r => num(r.other)],
+  ['売上合計', dailyTotal],
+  ['うち8%（テイクアウト）', r => num(r.takeout)],
+];
+const salesRows = ym => { // 月のすべての日。営業していない日も空欄で並べる
+  const map = Object.fromEntries(L('daily', ym).map(r => [r.date, r]));
+  return monthDays(ym).map(d => ({ date: d, r: map[d] || null }));
+};
+P.sales = {
+  month: true,
+  keys: () => [MK('daily', S.month)],
+  render() {
+    const list = salesRows(S.month); const recs = list.filter(x => x.r).map(x => x.r);
+    const T = SALES_COLS.map(([, f]) => sum(recs, f));
+    const g = sum(recs, r => r.guests);
+    const rows = list.map(({ date: d, r }) => {
+      const w = dowN(d); const cls = w === 0 ? 'sun' : w === 6 ? 'sat' : '';
+      if (!r) return `<tr class="dim ${cls}"><td>${dLabel(d)}</td><td colspan="${SALES_COLS.length + 1}" class="muted small">—</td></tr>`;
+      return `<tr class="click ${cls}" data-act="dailyEdit" data-id="${esc(d)}"><td>${dLabel(d)}</td>${SALES_COLS.map(([l, f], i) => `<td class="n">${f(r) ? (i === 6 ? '<b>' + yen(f(r)) + '</b>' : yen(f(r))) : ''}</td>`).join('')}<td class="n">${r.guests !== '' && r.guests != null ? int(r.guests) : ''}</td></tr>`;
+    }).join('');
+    return `<div class="stats">${stat('現金売上', yen(T[2]), `昼 ${yen(T[0])} ／ 夜 ${yen(T[1])}`)}${stat('カード売上', yen(T[3]))}${stat('QR・その他', yen(T[4] + T[5]))}${stat('売上合計', yen(T[6]), `${recs.length}営業日　うち8% ${yen(T[7])}`)}</div>
+    <div class="toolbar"><button class="btn primary" data-act="salesPrint">A4の印刷用に保存</button><button class="btn" data-act="salesCSV">CSV保存</button><span class="sp"></span><button class="btn" data-go="daily">日報を開く</button></div>
+    ${recs.length ? `<div class="tw"><table class="tbl"><thead><tr><th>日付</th>${SALES_COLS.map(c => `<th class="n">${esc(c[0])}</th>`).join('')}<th class="n">客数</th></tr></thead><tbody>${rows}</tbody>
+    <tfoot><tr><td>合計</td>${T.map((v, i) => `<td class="n">${i === 6 ? '<b>' + yen(v) + '</b>' : yen(v)}</td>`).join('')}<td class="n">${int(g)}</td></tr></tfoot></table></div>`
+        : emptyBox(ymLabel(S.month) + 'の日報がまだありません', '日報の売上がそのままこの表になります', '<button class="btn primary" data-go="daily">日報へ</button>')}
+    <p class="hint">日報に入力した売上をそのまま日ごとに並べたものです。「A4の印刷用に保存」で開いた画面をそのまま印刷するか、PDFにして税理士さんへお渡しください。金額はすべて税込です。</p>`;
+  }
+};
+A.salesCSV = () => saveFile(`売上日計表_${S.month}.csv`, toCSV([
+  ['日付', '曜日', ...SALES_COLS.map(c => c[0]), '客数', '記入者'],
+  ...salesRows(S.month).map(({ date: d, r }) => [d, DOW[dowN(d)], ...SALES_COLS.map(([, f]) => r ? f(r) : ''), r ? num(r.guests) : '', r ? (r.by || '') : '']),
+  ['合計', '', ...SALES_COLS.map(([, f]) => sum(L('daily', S.month), f)), sum(L('daily', S.month), r => r.guests), ''],
+]));
+A.salesPrint = () => {
+  const set = SET(); const list = salesRows(S.month); const recs = list.filter(x => x.r).map(x => x.r);
+  const T = SALES_COLS.map(([, f]) => sum(recs, f));
+  const rows = list.map(({ date: d, r }) => {
+    const w = dowN(d); const sh = w === 0 || w === 6 ? ' style="background:#f6f6f6"' : '';
+    if (!r) return `<tr${sh}><td>${dLabel(d)}</td><td colspan="${SALES_COLS.length + 1}" style="color:#999">休</td></tr>`;
+    return `<tr${sh}><td>${dLabel(d)}</td>${SALES_COLS.map(([, f], i) => `<td class="n">${f(r) ? (i === 6 ? '<b>' + int(f(r)) + '</b>' : int(f(r))) : ''}</td>`).join('')}<td class="n">${r.guests !== '' && r.guests != null ? int(r.guests) : ''}</td></tr>`;
+  }).join('');
+  saveFile(`売上日計表_${S.month}.html`, printDoc(`売上日計表 ${ymLabel(S.month)}`,
+    `<h1>売上日計表　${esc(ymLabel(S.month))}</h1>
+     <div class="meta">${esc(set.shop || set.trade || '')}　${set.trade && set.shop !== set.trade ? '（' + esc(set.trade) + '）' : ''}　${set.invoiceNo ? '登録番号 ' + esc(set.invoiceNo) + '　' : ''}単位：円（税込）</div>
+     <table><thead><tr><th>日付</th>${SALES_COLS.map(c => `<th class="n">${esc(c[0])}</th>`).join('')}<th class="n">客数</th></tr></thead><tbody>${rows}</tbody>
+     <tfoot><tr><th>合計</th>${T.map(v => `<th class="n">${int(v)}</th>`).join('')}<th class="n">${int(sum(recs, r => r.guests))}</th></tr></tfoot></table>
+     <p style="font-size:9pt">「休」は日報の記入がない日です。現金計＝ランチ＋ディナー。売上合計＝現金＋カード＋QR・電子マネー＋その他。</p>`,
+    'th.n,td.n{text-align:right;font-variant-numeric:tabular-nums}tfoot th{background:#eee}table{font-size:8.6pt}th,td{padding:2px 4px}'));
+};
 /* ---------- 年間集計・仕訳CSV ---------- */
 const TAXCLS = { s10: '課税売上10%', s8: '課税売上8%（軽）', p10: '課対仕入10%', p8: '課対仕入8%（軽）', np: '非課仕入', no: '対象外' };
 const ptax = t => num(t) === 10 ? TAXCLS.p10 : num(t) === 8 ? TAXCLS.p8 : TAXCLS.no;
