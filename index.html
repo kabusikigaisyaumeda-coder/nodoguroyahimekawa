@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-OPAWKkhitI80A+KCODD/QRI5dnP/HdjSvgAPUTNPxq0='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data: blob: https://tzmptqweehooidklvhpv.supabase.co; object-src https://tzmptqweehooidklvhpv.supabase.co; base-uri 'none'; form-action 'none'; manifest-src 'self'"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="のどぐろ家姫川"><meta name="theme-color" content="#23467A"></head><body>
+<html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-RgGQl/TqiAEi4YJKbpWHVZRY7hBfD8YHbxDLB4Om620='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data: blob: https://tzmptqweehooidklvhpv.supabase.co; object-src https://tzmptqweehooidklvhpv.supabase.co; base-uri 'none'; form-action 'none'; manifest-src 'self'"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="のどぐろ家姫川"><meta name="theme-color" content="#23467A"></head><body>
 <title>のどぐろ家姫川</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -536,6 +536,24 @@ function printDoc(title, bodyHTML, css = '') {
   h1{font-size:16pt;margin:0 0 4mm}table{border-collapse:collapse;width:100%;font-size:9.5pt}th,td{border:1px solid #999;padding:3px 5px;text-align:left}th{background:#eee}td.n,th.n{text-align:right}
   .meta{font-size:9pt;color:#444;margin-bottom:4mm}${css}</style></head><body>${bodyHTML}</body></html>`;
 }
+/* ---- A4印刷（表をそのまま印刷用のHTMLに） ---- */
+function printTable(file, title, rows, opts = {}) {
+  // rows[0] が見出し。opts.n＝右寄せにする列番号、opts.land＝横向き、opts.foot＝最終行を合計として扱う
+  const set = SET(); const head = rows[0] || []; const body = rows.slice(1);
+  const nums = opts.n || [];
+  const fmt = c => typeof c === 'number' ? (isFinite(c) ? c.toLocaleString('ja-JP', { maximumFractionDigits: 2 }) : '') : esc(c ?? '');
+  const cell = (c, i, tag) => `<${tag}${nums.includes(i) ? ' class="n"' : ''}>${fmt(c)}</${tag}>`;
+  const foot = opts.foot ? body.pop() : null;
+  const html = `<h1>${esc(title)}</h1>
+    <div class="meta">${esc(set.shop || set.trade || '')}${opts.meta ? '　' + esc(opts.meta) : ''}　${body.length}件　印刷日 ${today()}</div>
+    <table><thead><tr>${head.map((c, i) => cell(c, i, 'th')).join('')}</tr></thead>
+    <tbody>${body.map(r => `<tr>${r.map((c, i) => cell(c, i, 'td')).join('')}</tr>`).join('')}</tbody>
+    ${foot ? `<tfoot><tr>${foot.map((c, i) => cell(c, i, 'th')).join('')}</tr></tfoot>` : ''}</table>
+    ${opts.note ? `<p style="font-size:8.5pt">${esc(opts.note)}</p>` : ''}`;
+  saveFile(file, printDoc(title, html,
+    `${opts.land ? '@page{size:A4 landscape;margin:10mm}' : ''}table{font-size:${opts.fs || '9pt'}}th,td{padding:2px 4px}tfoot th{background:#eee}td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}tr{break-inside:avoid}thead{display:table-header-group}`));
+}
+
 /* ===================== Supabase 接続（ライブラリ不使用・REST直接） ===================== */
 const SB_URL = 'https://tzmptqweehooidklvhpv.supabase.co';
 const SB_KEY = 'sb_publishable_qMD1YdoblcTm0rEw525L0w__TdH8q1P';
@@ -1033,18 +1051,20 @@ P.daily = {
       return `<tr class="click ${cls}" data-act="dailyEdit" data-id="${esc(d)}"><td>${dLabel(d)}</td><td>${esc(r.weather || '')}</td><td class="n"><b>${yen(t)}</b></td><td class="n">${int(r.guests)}${(r.guestsLunch !== '' && r.guestsLunch != null) || (r.guestsDinner !== '' && r.guestsDinner != null) ? `<br><span class="small muted">昼${int(r.guestsLunch)}/夜${int(r.guestsDinner)}</span>` : ''}</td><td class="n">${num(r.guests) ? yen(t / num(r.guests)) : '—'}</td><td class="n">${r.cashLunch !== '' && r.cashLunch != null ? yen(r.cashLunch) : ''}</td><td class="n">${r.cashDinner !== '' && r.cashDinner != null ? yen(r.cashDinner) : (r.cashLunch === '' || r.cashLunch == null ? yen(r.cash) : '')}</td><td class="n">${yen(num(r.card) + num(r.qr) + num(r.other))}</td><td class="n">${pDay(r.date) ? yen(pDay(r.date)) : ''}</td><td>${haccp(r).pill}${tempList(r).length ? `<br><span class="small muted">体温${tempList(r).length}名</span>` : ''}</td><td class="wrap small">${esc(r.note || '')}</td><td class="small muted">${esc(r.by || '')}</td></tr>`;
     }).join('');
     return `<div class="stats">${stat('売上合計', yen(tot), `${recs.length}営業日`)}${stat('日平均', yen(recs.length ? tot / recs.length : 0))}${stat('客数', int(g) + '人', (g ? '平均客単価 ' + yen(tot / g) : '') + (sum(recs, r => r.guestsLunch) || sum(recs, r => r.guestsDinner) ? `　昼${int(sum(recs, r => r.guestsLunch))}/夜${int(sum(recs, r => r.guestsDinner))}` : ''))}${stat('現金売上（昼／夜）', yen(sum(recs, r => r.cashLunch)) + ' / ' + yen(sum(recs, r => (r.cashLunch === '' || r.cashLunch == null) && (r.cashDinner === '' || r.cashDinner == null) ? r.cash : r.cashDinner)))}${stat('衛生記録', recs.filter(r => haccp(r).filled).length + ' / ' + recs.length + '日', recs.filter(r => haccp(r).filled && haccp(r).ng.length).length ? '要確認 ' + recs.filter(r => haccp(r).filled && haccp(r).ng.length).length + '日' : '')}</div>
-    <div class="toolbar"><button class="btn primary" data-act="dailyToday">今日の日報を書く</button><span class="sp"></span><button class="btn" data-act="dailyCSV">CSV保存</button><button class="btn" data-act="hcPrint">衛生記録を印刷用に保存</button></div>
+    <div class="toolbar"><button class="btn primary" data-act="dailyToday">今日の日報を書く</button><span class="sp"></span><button class="btn" data-act="dailyCSV">CSV保存</button><button class="btn" data-act="dailyPrint">A4の印刷用に保存</button><button class="btn" data-act="hcPrint">衛生記録を印刷用に保存</button></div>
     <div class="tw"><table class="tbl"><thead><tr><th>日付</th><th>天気</th><th class="n">売上</th><th class="n">客数</th><th class="n">客単価</th><th class="n">現金（ランチ）</th><th class="n">現金（ディナー）</th><th class="n">キャッシュレス</th><th class="n">仕入</th><th>衛生</th><th>特記事項</th><th>記入</th></tr></thead><tbody>${rows}</tbody>
     <tfoot><tr><td>合計</td><td></td><td class="n">${yen(tot)}</td><td class="n">${int(g)}</td><td class="n">${g ? yen(tot / g) : '—'}</td><td class="n">${yen(sum(recs, r => r.cashLunch))}</td><td class="n">${yen(sum(recs, r => (r.cashLunch === '' || r.cashLunch == null) && (r.cashDinner === '' || r.cashDinner == null) ? r.cash : r.cashDinner))}</td><td class="n">${yen(sum(recs, r => num(r.card) + num(r.qr) + num(r.other)))}</td><td class="n">${yen(sum(L('purch', S.month), p => num(p.a8) + num(p.a10)))}</td><td colspan="3"></td></tr></tfoot></table></div>
     <p class="hint">スマレジの日次売上を見ながら入力してください。テイクアウト分は消費税8%として仕訳CSVに反映されます。衛生管理の記録と、その日の仕入の入力も日報の中にあります。入力した仕入は自動で仕入帳に記帳されます。</p>`;
   }
 };
-A.dailyCSV = () => {
+const dailyRows = () => {
   const recs = L('daily', S.month).sort(byDate);
-  saveFile(`日報_${S.month}.csv`, toCSV([['日付', '天気', '売上合計', '現金(ランチ)', '現金(ディナー)', '現金合計', 'カード', 'QR・電子マネー', 'その他', 'うちテイクアウト', '客数(ランチ)', '客数(ディナー)', '客数合計', '組数', '記入者', '特記事項', '冷蔵庫(℃)', '冷凍庫(℃)', ...HC_CHECKS.map(c => c[1]), '出勤者の体温', '衛生の異常と対応'],
+  return [['日付', '天気', '売上合計', '現金(ランチ)', '現金(ディナー)', '現金合計', 'カード', 'QR・電子マネー', 'その他', 'うちテイクアウト', '客数(ランチ)', '客数(ディナー)', '客数合計', '組数', '記入者', '特記事項', '冷蔵庫(℃)', '冷凍庫(℃)', ...HC_CHECKS.map(c => c[1]), '出勤者の体温', '衛生の異常と対応'],
     ...recs.map(r => [r.date, r.weather, dailyTotal(r), num(r.cashLunch), (r.cashLunch === '' || r.cashLunch == null) && (r.cashDinner === '' || r.cashDinner == null) ? num(r.cash) : num(r.cashDinner), num(r.cash), num(r.card), num(r.qr), num(r.other), num(r.takeout), num(r.guestsLunch), num(r.guestsDinner), num(r.guests), num(r.groups), r.by, r.note,
-      r.hcFridge ?? '', r.hcFreezer ?? '', ...HC_CHECKS.map(([k]) => r[k] ? '○' : ''), tempList(r).map(x => `${x.name} ${x.t}℃`).join('、'), r.hcNote || ''])]));
+      r.hcFridge ?? '', r.hcFreezer ?? '', ...HC_CHECKS.map(([k]) => r[k] ? '○' : ''), tempList(r).map(x => `${x.name} ${x.t}℃`).join('、'), r.hcNote || ''])];
 };
+A.dailyCSV = () => saveFile(`日報_${S.month}.csv`, toCSV(dailyRows()));
+A.dailyPrint = () => printTable(`日報_${S.month}.html`, `日報一覧　${ymLabel(S.month)}`, dailyRows(), { land: true, fs: '6.6pt', n: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 16, 17], note: '○＝確認済み。金額は税込。売上の日ごとの内訳だけを税理士さんに渡すときは「売上日計表」をお使いください。' });
 
 A.hcPrint = () => {
   const set = SET(); const recs = L('daily', S.month).sort(byDate);
@@ -1178,7 +1198,7 @@ P.time = {
     }).join('')}</div>` : emptyBox('スタッフが登録されていません', '「スタッフ名簿」で登録すると、ここに打刻ボタンが並びます', '<button class="btn primary" data-go="staff">スタッフ名簿へ</button>');
     const sumRows = staffAll().filter(s => sm[s.id]).map(s => { const x = sm[s.id]; return `<tr><td>${esc(s.name)}</td><td class="n">${x.days}日</td><td class="n">${hrs(x.work)}h</td><td class="n">${hrs(x.ot)}h ${otPill(x.ot)}</td><td class="n">${hrs(x.night)}h</td></tr>`; }).join('');
     return `<div class="toolbar"><span class="muted small">打刻は現在時刻で記録されます（${dLong(today())}）</span></div>${punch}
-    <section class="sec"><h3>${ymLabel(S.month)}の集計<span class="sp"></span><button class="btn sm" data-act="timeCSV">出勤簿CSV</button></h3>
+    <section class="sec"><h3>${ymLabel(S.month)}の集計<span class="sp"></span><button class="btn sm" data-act="timeCSV">出勤簿CSV</button><button class="btn sm" data-act="timePrint">A4の印刷用に保存</button></h3>
       ${sumRows ? `<div class="tw"><table class="tbl"><thead><tr><th>氏名</th><th class="n">出勤日数</th><th class="n">実働時間</th><th class="n">法定時間外</th><th class="n">深夜（22〜5時）</th></tr></thead><tbody>${sumRows}</tbody></table></div>` : emptyBox('この月の勤怠記録はありません', '')}
       <p class="hint">法定時間外＝1日8時間超＋週${SET().weekLimit}時間超（日曜始まり・月内で集計）。分単位で計算しています（切り捨てはしません）。時間外労働には36協定の届出が必要で、上限は原則 月45時間・年360時間です（45h超・60h超に印が付きます）。</p>
     </section>
@@ -1223,10 +1243,12 @@ function timeForm(rec) {
 }
 A.timeAdd = () => timeForm(null);
 A.timeEdit = el => timeForm(Store.get(MK('time', S.month), el.dataset.id));
-A.timeCSV = () => {
+const timeRows = () => {
   const recs = L('time', S.month).sort(byDate);
-  saveFile(`出勤簿_${S.month}.csv`, toCSV([['日付', '氏名', '出勤', '退勤', '休憩(分)', '実働(時間)', '深夜(時間)', '法定外(日8h超)', '備考'], ...recs.map(t => { const c = timeCalc(t) || {}; return [t.date, staffName(t.staff), m2hm(t.in), t.out != null ? m2hm(t.out < t.in ? t.out + 1440 : t.out) : '', c.brk || 0, hrs(c.work), hrs(c.night), hrs(c.ot), (t.edited ? '[修正] ' : '') + (t.note || '')]; })]));
+  return [['日付', '氏名', '出勤', '退勤', '休憩(分)', '実働(時間)', '深夜(時間)', '法定外(日8h超)', '備考'], ...recs.map(t => { const c = timeCalc(t) || {}; return [t.date, staffName(t.staff), m2hm(t.in), t.out != null ? m2hm(t.out < t.in ? t.out + 1440 : t.out) : '', c.brk || 0, hrs(c.work), hrs(c.night), hrs(c.ot), (t.edited ? '[修正] ' : '') + (t.note || '')]; })];
 };
+A.timeCSV = () => saveFile(`出勤簿_${S.month}.csv`, toCSV(timeRows()));
+A.timePrint = () => printTable(`出勤簿_${S.month}.html`, `出勤簿　${ymLabel(S.month)}`, timeRows(), { n: [4, 5, 6, 7], note: '労働基準法で保存が必要な帳簿です（法定三帳簿のひとつ）。' });
 
 /* ---------- シフト表 ---------- */
 const legalBreak = d => d > 480 ? 60 : d > 360 ? 45 : 0;
@@ -1240,7 +1262,7 @@ P.shift = {
     let totalCost = 0; const perStaff = {};
     for (const s of st) { let h = 0; for (const d of days) { const x = map[d + '_' + s.id]; if (x && x.s != null && x.e != null) { let dur = (x.e < x.s ? x.e + 1440 : x.e) - x.s; dur -= legalBreak(dur); h += dur; } } const hourly = s.payType === 'month' ? 0 : num(s.rate); perStaff[s.id] = { h, cost: h / 60 * hourly }; totalCost += h / 60 * hourly; }
     return `<div class="stats">${stat('シフト総時間', hrs(sum(Object.values(perStaff), x => x.h)) + 'h')}${stat('時給スタッフ人件費（見込み）', yen(totalCost), '月給者・深夜割増は含まず')}</div>
-    <div class="toolbar"><span class="muted small">マスをタップして時間を入力。休憩は労基法の最低時間（6h超45分・8h超60分）を差し引いて計算。</span><span class="sp"></span><button class="btn sm" data-act="shiftCopyWeek">前週をこの週にコピー…</button><button class="btn sm" data-act="shiftCSV">CSV保存</button></div>
+    <div class="toolbar"><span class="muted small">マスをタップして時間を入力。休憩は労基法の最低時間（6h超45分・8h超60分）を差し引いて計算。</span><span class="sp"></span><button class="btn sm" data-act="shiftCopyWeek">前週をこの週にコピー…</button><button class="btn sm" data-act="shiftCSV">CSV保存</button><button class="btn sm" data-act="shiftPrint">A4の印刷用に保存</button></div>
     <div class="tw"><table class="tbl shift"><thead><tr><th>氏名</th>${days.map(d => { const w = dowN(d); return `<th class="${w === 0 ? 'sun' : w === 6 ? 'sat' : ''}">${Number(d.slice(8))}<br>${DOW[w]}</th>`; }).join('')}<th class="n">時間</th></tr></thead>
     <tbody>${st.map(s => `<tr><td class="nm">${esc(s.name)}</td>${days.map(d => { const x = map[d + '_' + s.id]; return `<td class="cell" data-act="shiftCell" data-d="${esc(d)}" data-s="${esc(s.id)}">${x && x.s != null ? `<b>${m2in(x.s).replace(/^0/, '')}<br>${m2in(x.e).replace(/^0/, '')}</b>` : ''}</td>`; }).join('')}<td class="n">${hrs(perStaff[s.id].h)}</td></tr>`).join('')}
     <tr><td class="nm muted">人数</td>${days.map(d => `<td class="muted">${st.filter(s => map[d + '_' + s.id]).length || ''}</td>`).join('')}<td></td></tr></tbody></table></div>`;
@@ -1262,7 +1284,9 @@ A.shiftCopyWeek = () => {
     onSave: async v => { let n = 0; for (let i = 0; i < 7; i++) { const to = addDay(v.from, i), src = addDay(v.from, i - 7); const list = (await Store.fetch(MK('shift', ymOf(src)))).filter(s => s.date === src); for (const s of list) { await Store.put(MK('shift', ymOf(to)), to + '_' + s.staff, { date: to, staff: s.staff, s: s.s, e: s.e, note: s.note || '' }); n++; } } toast(n + '件コピーしました'); },
   });
 };
-A.shiftCSV = () => { const days = monthDays(S.month); const map = Object.fromEntries(L('shift', S.month).map(s => [s.date + '_' + s.staff, s])); saveFile(`シフト表_${S.month}.csv`, toCSV([['氏名', ...days.map(d => dLabel(d))], ...staffActive().map(s => [s.name, ...days.map(d => { const x = map[d + '_' + s.id]; return x ? m2in(x.s) + '-' + m2in(x.e) : ''; })])])); };
+const shiftRows = () => { const days = monthDays(S.month); const map = Object.fromEntries(L('shift', S.month).map(s => [s.date + '_' + s.staff, s])); return [['氏名', ...days.map(d => dLabel(d))], ...staffActive().map(s => [s.name, ...days.map(d => { const x = map[d + '_' + s.id]; return x ? m2in(x.s) + '-' + m2in(x.e) : ''; })])]; };
+A.shiftCSV = () => saveFile(`シフト表_${S.month}.csv`, toCSV(shiftRows()));
+A.shiftPrint = () => printTable(`シフト表_${S.month}.html`, `シフト表　${ymLabel(S.month)}`, shiftRows(), { land: true, fs: '6.2pt', note: '厨房やバックヤードに貼り出す用です。' });
 
 /* ---------- 給与・賃金台帳 ---------- */
 P.pay = {
@@ -1273,7 +1297,7 @@ P.pay = {
     const st = staffAll().filter(s => !s.left || tm[s.id]);
     const rows = st.map(s => ({ s, t: tm[s.id] || { days: 0, work: 0, ot: 0, night: 0 }, adj: Store.get(MK('pay', S.month), s.id) || {} })).map(x => ({ ...x, p: payCalc(x.s, x.t, x.adj) }));
     return `<div class="stats">${stat('総支給額', yen(sum(rows, x => x.p.gross)))}${stat('控除合計', yen(sum(rows, x => x.p.dedTotal)))}${stat('差引支給額', yen(sum(rows, x => x.p.net)))}${stat('源泉所得税（預り）', yen(sum(rows, x => x.p.ded.tax)), '翌月10日までに納付（納期の特例なら半年ごと）')}</div>
-    <div class="toolbar"><span class="muted small">行をタップして控除額（社会保険・雇用保険・源泉所得税・住民税）や手当を入力します。</span><span class="sp"></span><button class="btn" data-act="payCSV">賃金台帳CSV</button></div>
+    <div class="toolbar"><span class="muted small">行をタップして控除額（社会保険・雇用保険・源泉所得税・住民税）や手当を入力します。</span><span class="sp"></span><button class="btn" data-act="payCSV">賃金台帳CSV</button><button class="btn" data-act="payPrint">A4の印刷用に保存</button></div>
     ${rows.length ? `<div class="tw"><table class="tbl"><thead><tr><th>氏名</th><th class="n">日数</th><th class="n">実働</th><th class="n">時間外</th><th class="n">深夜</th><th class="n">基本給</th><th class="n">時間外割増</th><th class="n">深夜割増</th><th class="n">通勤手当</th><th class="n">その他手当</th><th class="n">総支給</th><th class="n">控除計</th><th class="n">差引支給</th><th></th></tr></thead>
     <tbody>${rows.map(({ s, t, p, adj }) => `<tr class="click" data-act="payEdit" data-id="${esc(s.id)}"><td>${esc(s.name)}${adj.fixed ? ' <span class="pill ok">確定</span>' : ''}</td><td class="n">${t.days}</td><td class="n">${hrs(t.work)}h</td><td class="n">${hrs(t.ot)}h ${otPill(t.ot)}</td><td class="n">${hrs(t.night)}h</td><td class="n">${yen(p.base)}</td><td class="n">${yen(p.otPrem)}</td><td class="n">${yen(p.nightPrem)}</td><td class="n">${yen(p.commute)}</td><td class="n">${yen(p.allowance)}</td><td class="n"><b>${yen(p.gross)}</b></td><td class="n">${yen(p.dedTotal)}</td><td class="n"><b>${yen(p.net)}</b></td><td><button class="btn sm" data-act="paySlip" data-id="${esc(s.id)}">明細</button></td></tr>`).join('')}</tbody></table></div>` : emptyBox('対象のスタッフがいません', '')}
     <p class="hint">時間外は25%割増、月60時間を超えた部分は50%割増、深夜は25%割増で自動計算しています（法定休日の労働35%は手当欄で調整してください）。源泉所得税は「給与所得の源泉徴収税額表」（扶養控除等申告書の提出者は甲欄、未提出は乙欄）で確認して入力します。</p>`;
@@ -1297,11 +1321,16 @@ function payRows(ym, timeRecs, payRecs) {
   const tm = monthTime(ym, timeRecs); const adj = Object.fromEntries(payRecs.map(p => [p.id, p]));
   return staffAll().filter(s => tm[s.id] || adj[s.id]).map(s => ({ s, t: tm[s.id] || { days: 0, work: 0, ot: 0, night: 0 }, adj: adj[s.id] || {}, p: payCalc(s, tm[s.id], adj[s.id]) }));
 }
-A.payCSV = () => {
+const PAY_SUMS = [x => x.p.base, x => x.p.otPrem, x => x.p.nightPrem, x => x.p.commute, x => x.p.allowance, x => x.p.gross,
+  x => x.p.ded.health, x => x.p.ded.pension, x => x.p.ded.emp, x => x.p.ded.tax, x => x.p.ded.resident, x => x.p.ded.other, x => x.p.dedTotal, x => x.p.net];
+const payTableRows = () => {
   const rows = payRows(S.month, L('time', S.month), L('pay', S.month));
-  saveFile(`賃金台帳_${S.month}.csv`, toCSV([['賃金計算期間', '氏名', '性別', '労働日数', '労働時間数', '時間外労働時間数', '深夜労働時間数', '基本給', '時間外割増', '深夜割増', '通勤手当', 'その他手当', '総支給額', '健康保険', '厚生年金', '雇用保険', '源泉所得税', '住民税', 'その他控除', '控除合計', '差引支給額', '支給日'],
-    ...rows.map(({ s, t, p, adj }) => [S.month, s.name, s.sex || '', t.days, hrs(t.work), hrs(t.ot), hrs(t.night), p.base, p.otPrem, p.nightPrem, p.commute, p.allowance, p.gross, p.ded.health, p.ded.pension, p.ded.emp, p.ded.tax, p.ded.resident, p.ded.other, p.dedTotal, p.net, adj.paydate || ''])]));
+  return [['賃金計算期間', '氏名', '性別', '労働日数', '労働時間数', '時間外労働時間数', '深夜労働時間数', '基本給', '時間外割増', '深夜割増', '通勤手当', 'その他手当', '総支給額', '健康保険', '厚生年金', '雇用保険', '源泉所得税', '住民税', 'その他控除', '控除合計', '差引支給額', '支給日'],
+    ...rows.map(({ s, t, p, adj }) => [S.month, s.name, s.sex || '', t.days, hrs(t.work), hrs(t.ot), hrs(t.night), p.base, p.otPrem, p.nightPrem, p.commute, p.allowance, p.gross, p.ded.health, p.ded.pension, p.ded.emp, p.ded.tax, p.ded.resident, p.ded.other, p.dedTotal, p.net, adj.paydate || '']),
+    ['合計', rows.length + '名', '', sum(rows, x => x.t.days), hrs(sum(rows, x => x.t.work)), hrs(sum(rows, x => x.t.ot)), hrs(sum(rows, x => x.t.night)), ...PAY_SUMS.map(f => sum(rows, f)), '']];
 };
+A.payCSV = () => saveFile(`賃金台帳_${S.month}.csv`, toCSV(payTableRows()));
+A.payPrint = () => printTable(`賃金台帳_${S.month}.html`, `賃金台帳　${ymLabel(S.month)}`, payTableRows(), { land: true, fs: '6.8pt', foot: true, n: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20], note: '労働基準法で保存が必要な帳簿です（法定三帳簿のひとつ）。1人ずつの給与明細は一覧の「明細」から印刷できます。' });
 A.paySlip = el => {
   const s = Store.get('staff', el.dataset.id); const x = payRows(S.month, L('time', S.month), L('pay', S.month)).find(r => r.s.id === s.id) || { t: { days: 0, work: 0, ot: 0, night: 0 }, adj: {}, p: payCalc(s) };
   const set = SET(); const { t, p, adj } = x;
@@ -1338,13 +1367,15 @@ P.staff = {
   keys: () => ['staff'],
   render() {
     const list = staffAll();
-    return `<div class="toolbar"><button class="btn primary" data-act="staffAdd">＋ スタッフを登録</button><span class="sp"></span><button class="btn" data-act="staffCSV">労働者名簿CSV</button></div>
+    return `<div class="toolbar"><button class="btn primary" data-act="staffAdd">＋ スタッフを登録</button><span class="sp"></span><button class="btn" data-act="staffCSV">労働者名簿CSV</button><button class="btn" data-act="staffPrint">A4の印刷用に保存</button></div>
     ${list.length ? `<div class="tw"><table class="tbl"><thead><tr><th>氏名</th><th>雇用形態</th><th>業務</th><th class="n">時給・月給</th><th>雇入日</th><th>電話</th><th>状態</th></tr></thead><tbody>${list.map(s => `<tr class="click${s.left ? ' dim' : ''}" data-act="staffEdit" data-id="${esc(s.id)}"><td><b>${esc(s.name)}</b> <span class="small muted">${esc(s.kana || '')}</span></td><td>${esc(s.empType || '')}</td><td>${esc(s.job || '')}</td><td class="n">${yen(s.rate)}${s.payType === 'month' ? '/月' : '/時'}</td><td>${esc(s.hired || '')}</td><td>${esc(s.tel || '')}</td><td>${s.left ? `<span class="pill">退職 ${esc(s.left)}</span>` : '<span class="pill ok">在籍</span>'}</td></tr>`).join('')}</tbody></table></div>`
         : emptyBox('スタッフが登録されていません', 'タイムカードの打刻と給与計算に使います。オーナーご自身は登録不要です（家族を青色事業専従者にする場合は登録）。', '<button class="btn primary" data-act="staffAdd">＋ スタッフを登録</button>')}
     <p class="hint">労働者名簿・賃金台帳・出勤簿は「法定三帳簿」として、最後の記入日などから5年間（当分の間は3年）の保存が必要です。</p>`;
   }
 };
-A.staffCSV = () => saveFile('労働者名簿.csv', toCSV([['氏名', 'ふりがな', '性別', '生年月日', '住所', '電話', '雇用形態', '従事する業務', '雇入年月日', '履歴', '退職年月日', '退職の事由', '備考'], ...staffAll().map(s => [s.name, s.kana, s.sex, s.birth, s.addr, s.tel, s.empType, s.job, s.hired, s.history, s.left, s.leftReason, s.note])]));
+const staffRows = () => [['氏名', 'ふりがな', '性別', '生年月日', '住所', '電話', '雇用形態', '従事する業務', '雇入年月日', '履歴', '退職年月日', '退職の事由', '備考'], ...staffAll().map(s => [s.name, s.kana, s.sex, s.birth, s.addr, s.tel, s.empType, s.job, s.hired, s.history, s.left, s.leftReason, s.note])];
+A.staffCSV = () => saveFile('労働者名簿.csv', toCSV(staffRows()));
+A.staffPrint = () => printTable('労働者名簿.html', '労働者名簿', staffRows(), { land: true, fs: '7.2pt', note: '労働基準法で保存が必要な帳簿です（法定三帳簿のひとつ）。住所・生年月日を含みますので取り扱いにご注意ください。' });
 /* ---------- 仕入帳 ---------- */
 const PAY_OPTS = ['掛', '小口現金', 'カード', '振込/口座', '事業主借'];
 const F_PURCH = [
@@ -1371,7 +1402,7 @@ P.purch = {
     const tot = x => num(x.a8) + num(x.a10);
     const bySup = groupBy(list, p => p.supplier);
     return `<div class="stats">${stat('仕入合計（税込）', yen(sum(list, tot)), list.length + '件')}${stat('うち8%', yen(sum(list, p => p.a8)))}${stat('うち10%', yen(sum(list, p => p.a10)))}${stat('買掛 未払い', yen(sum(list.filter(p => p.pay === '掛' && !p.paid), tot)))}</div>
-    <div class="toolbar"><button class="btn primary" data-act="purchAdd">＋ 仕入を記帳</button><span class="sp"></span><button class="btn" data-act="purchCSV">仕入帳CSV</button></div>
+    <div class="toolbar"><button class="btn primary" data-act="purchAdd">＋ 仕入を記帳</button><span class="sp"></span><button class="btn" data-act="purchCSV">仕入帳CSV</button><button class="btn" data-act="purchPrint">A4の印刷用に保存</button></div>
     ${list.length ? `<div class="tw"><table class="tbl"><thead><tr><th>日付</th><th>仕入先</th><th>内容</th><th class="n">8%</th><th class="n">10%</th><th class="n">合計</th><th>支払</th><th>照合</th><th></th></tr></thead><tbody>${list.map(p => `<tr class="click" data-act="purchEdit" data-id="${esc(p.id)}"><td>${dLabel(p.date)}</td><td>${esc(supName(p.supplier))}</td><td class="wrap small">${esc(p.desc || '')}${p.src === 'daily' ? ' <span class="pill acc">日報から</span>' : ''}</td><td class="n">${p.a8 ? yen(p.a8) : ''}</td><td class="n">${p.a10 ? yen(p.a10) : ''}</td><td class="n"><b>${yen(tot(p))}</b></td><td>${esc(p.pay || '')}${p.pay === '掛' ? (p.paid ? ' <span class="pill ok">済</span>' : ' <span class="pill warn">未払</span>') : ''}</td><td>${p.checked ? '<span class="pill ok">済</span>' : ''}</td><td>${receiptLink(p)}</td></tr>`).join('')}</tbody>
     <tfoot><tr><td colspan="3">合計</td><td class="n">${yen(sum(list, p => p.a8))}</td><td class="n">${yen(sum(list, p => p.a10))}</td><td class="n">${yen(sum(list, tot))}</td><td colspan="3"></td></tr></tfoot></table></div>
     <section class="sec" style="margin-top:22px"><h3>仕入先別</h3><div class="tw"><table class="tbl"><thead><tr><th>仕入先</th><th class="n">件数</th><th class="n">合計</th></tr></thead><tbody>${Object.keys(bySup).map(k => `<tr><td>${esc(supName(k))}</td><td class="n">${bySup[k].length}</td><td class="n">${yen(sum(bySup[k], tot))}</td></tr>`).join('')}</tbody></table></div></section>`
@@ -1379,7 +1410,9 @@ P.purch = {
     <p class="hint">日報の「今日の仕入」で入力したものは「日報から」と表示されます（金額の修正はどちらからでもできます）。食品は軽減税率8%、酒類・包材・消耗品は10%です。インボイス（適格請求書）は7年間保存してください。</p>`;
   }
 };
-A.purchCSV = () => { const list = L('purch', S.month).sort(byDate); saveFile(`仕入帳_${S.month}.csv`, toCSV([['日付', '仕入先', '内容', '8%対象(税込)', '10%対象(税込)', '合計', '支払方法', '支払日', '適格請求書', '照合', 'メモ'], ...list.map(p => [p.date, supName(p.supplier), p.desc, num(p.a8), num(p.a10), num(p.a8) + num(p.a10), p.pay, p.paid || '', p.invoice ? '○' : '', p.checked ? '○' : '', p.note])])); };
+const purchRows = () => { const list = L('purch', S.month).sort(byDate); return [['日付', '仕入先', '内容', '8%対象(税込)', '10%対象(税込)', '合計', '支払方法', '支払日', '適格請求書', '照合', 'メモ'], ...list.map(p => [p.date, supName(p.supplier), p.desc, num(p.a8), num(p.a10), num(p.a8) + num(p.a10), p.pay, p.paid || '', p.invoice ? '○' : '', p.checked ? '○' : '', p.note]), ['合計', '', '', sum(list, p => p.a8), sum(list, p => p.a10), sum(list, p => num(p.a8) + num(p.a10)), '', '', '', '', '']]; };
+A.purchCSV = () => saveFile(`仕入帳_${S.month}.csv`, toCSV(purchRows()));
+A.purchPrint = () => printTable(`仕入帳_${S.month}.html`, `仕入帳　${ymLabel(S.month)}`, purchRows(), { land: true, fs: '7.6pt', foot: true, n: [3, 4, 5], note: '金額は税込。○印のある行は適格請求書（インボイス）の保存があるものです。' });
 
 /* ---------- 発注 ---------- */
 let orderDraft = {}; let orderSup = '';
@@ -1442,7 +1475,7 @@ P.inv = {
     return `<div class="stats">${stat(ymLabel(S.month) + '末 棚卸高', yen(tot), isDec ? '＝この年の期末棚卸高（確定申告）' : '')}${stat('品目数', list.length)}${stat('入力済み', list.filter(r => r.qty !== '' && r.qty != null).length + ' / ' + list.length)}</div>
     ${isDec ? '<div class="note-box">12月末の棚卸高は、青色申告決算書の「期末商品（製品）棚卸高」になります。売れ残った食材・酒類を数えて入力してください。</div>' : ''}
     ${closeBar('inv', S.month)}
-    <div class="toolbar"><button class="btn primary" data-act="invCopy">前月からコピー</button><button class="btn" data-act="invFill">食材マスタから一覧を作る</button><button class="btn" data-act="invAdd">＋ 品目を追加</button><span class="sp"></span><button class="btn" data-act="invCSV">棚卸表CSV</button></div>
+    <div class="toolbar"><button class="btn primary" data-act="invCopy">前月からコピー</button><button class="btn" data-act="invFill">食材マスタから一覧を作る</button><button class="btn" data-act="invAdd">＋ 品目を追加</button><span class="sp"></span><button class="btn" data-act="invCSV">棚卸表CSV</button><button class="btn" data-act="invPrint">A4の印刷用に保存</button></div>
     ${list.length ? `<div class="tw"><table class="tbl"><thead><tr><th>分類</th><th>品目</th><th>単位</th><th class="n">単価（税抜）</th><th class="n">数量</th><th class="n">金額</th><th></th></tr></thead><tbody>${list.map(r => `<tr><td class="muted">${esc(r.cat || '')}</td><td><b>${esc(r.name)}</b></td><td>${esc(r.unit || '')}</td><td class="n">${num(r.price) % 1 ? '¥' + num(r.price).toFixed(2) : yen(r.price)}</td><td class="n" style="width:110px"><input id="iq_${esc(r.id)}" type="number" inputmode="decimal" value="${esc(r.qty ?? '')}" data-chg="invQty" data-id="${esc(r.id)}"></td><td class="n" id="ia_${esc(r.id)}">${yen(num(r.qty) * num(r.price))}</td><td><button class="btn sm" data-act="invDel" data-id="${esc(r.id)}">除く</button></td></tr>`).join('')}</tbody><tfoot><tr><td colspan="5">合計</td><td class="n">${yen(tot)}</td><td></td></tr></tfoot></table></div>`
         : emptyBox('この月の棚卸はまだありません', '前月と同じ品目で数えるなら「前月からコピー」、初めてなら「食材マスタから一覧を作る」', '<button class="btn primary" data-act="invCopy">前月からコピー</button> <button class="btn" data-act="invFill">食材マスタから一覧を作る</button>')}`;
   }
@@ -1469,7 +1502,9 @@ A.invCopy = async () => {
 A.invAdd = () => openForm({ title: '棚卸品目を追加', fields: [{ k: 'name', label: '品目', req: true }, { k: 'cat', label: '分類' }, { k: 'unit', label: '単位' }, { k: 'price', label: '単価（税抜）', type: 'money' }, { k: 'qty', label: '数量', type: 'num' }], onSave: async v => { await Store.put(MK('inv', S.month), uid(), v); } });
 A.invDel = async el => { await Store.put(MK('inv', S.month), el.dataset.id, null); };
 CHG.invQty = async el => { const r = Store.get(MK('inv', S.month), el.dataset.id); if (!r) return; const a = $('#ia_' + r.id); if (a) a.textContent = yen(num(el.value) * num(r.price)); await Store.put(MK('inv', S.month), r.id, { ...r, qty: el.value === '' ? '' : num(el.value) }); };
-A.invCSV = () => { const list = L('inv', S.month); saveFile(`棚卸表_${S.month}.csv`, toCSV([['分類', '品目', '単位', '単価(税抜)', '数量', '金額'], ...list.map(r => [r.cat, r.name, r.unit, num(r.price), r.qty, Math.round(num(r.qty) * num(r.price))]), ['', '', '', '', '合計', Math.round(sum(list, r => num(r.qty) * num(r.price)))]])); };
+const invRows = () => { const list = L('inv', S.month).sort((a, b) => String(a.cat || '').localeCompare(String(b.cat || ''), 'ja') || String(a.name).localeCompare(String(b.name), 'ja')); return [['分類', '品目', '単位', '単価(税抜)', '数量', '金額'], ...list.map(r => [r.cat, r.name, r.unit, num(r.price), r.qty, Math.round(num(r.qty) * num(r.price))]), ['合計', '', '', '', '', Math.round(sum(list, r => num(r.qty) * num(r.price)))]]; };
+A.invCSV = () => saveFile(`棚卸表_${S.month}.csv`, toCSV(invRows()));
+A.invPrint = () => printTable(`棚卸表_${S.month}.html`, `棚卸表　${ymLabel(S.month)}末`, invRows(), { foot: true, n: [3, 4, 5], note: '12月末の金額が、青色申告決算書の「期末商品（製品）棚卸高」になります。数えた人・日付を欄外に手書きで残しておくと確実です。' });
 
 /* ---------- 廃棄ロス ---------- */
 const F_WASTE = [
@@ -1578,13 +1613,15 @@ P.recipes = {
     const avg = list.length ? sum(list, x => isFinite(x.c.rate) ? x.c.rate : 0) / list.filter(x => isFinite(x.c.rate)).length : NaN;
     const byCat = groupBy(list, x => x.r.cat || '未分類');
     return `<div class="stats">${stat('メニュー数', list.length)}${stat('平均原価率', pct(avg), '目安：飲食店全体で30%前後')}${stat('原価率38%超', list.filter(x => x.c.rate > .38).length + '品')}</div>
-    <div class="toolbar"><button class="btn primary" data-act="recipeAdd">＋ レシピを追加</button><span class="sp"></span><button class="btn" data-act="recipeCSV">原価表CSV</button></div>
+    <div class="toolbar"><button class="btn primary" data-act="recipeAdd">＋ レシピを追加</button><span class="sp"></span><button class="btn" data-act="recipeCSV">原価表CSV</button><button class="btn" data-act="recipePrint">A4の印刷用に保存</button></div>
     ${list.length ? Object.keys(byCat).map(cat => `<section class="sec"><h3>${esc(cat)}</h3><div class="tw"><table class="tbl"><thead><tr><th>メニュー</th><th class="n">売価（税込）</th><th class="n">原価（1人前）</th><th class="n">原価率</th><th class="n">粗利</th><th>アレルゲン</th><th>表示</th></tr></thead><tbody>${byCat[cat].map(({ r, c }) => `<tr class="click" data-act="recipeEdit" data-id="${esc(r.id)}"><td><b>${esc(r.name)}</b></td><td class="n">${yen(r.price)}</td><td class="n">${yen(c.cost)}</td><td class="n"><span class="pill ${rateCls(c.rate)}">${pct(c.rate)}</span></td><td class="n">${yen(num(r.price) / (r.takeout ? 1.08 : 1.1) - c.cost)}</td><td class="wrap small">${c.allergens.map(a => `<span class="pill${ALLERGEN_REQ.includes(a) ? ' bad' : ''}">${esc(a)}</span>`).join(' ')}</td><td>${r.onMenu ? '<span class="pill acc">掲載</span>' : ''}</td></tr>`).join('')}</tbody></table></div></section>`).join('')
         : emptyBox('レシピがありません', '材料と分量を入れると、原価と原価率が自動で出ます', '<button class="btn primary" data-act="recipeAdd">＋ レシピを追加</button>')}
     <p class="hint">原価率＝1人前原価 ÷ 税抜売価。食材単価を更新すると全メニューの原価が自動で変わります。</p>`;
   }
 };
-A.recipeCSV = () => saveFile('原価表.csv', toCSV([['カテゴリ', 'メニュー', '売価(税込)', '原価', '原価率', 'アレルゲン'], ...recipes().map(r => { const c = recipeCost(r); return [r.cat, r.name, num(r.price), Math.round(c.cost), isFinite(c.rate) ? (c.rate * 100).toFixed(1) + '%' : '', c.allergens.join('・')]; })]));
+const recipeRows = () => [['カテゴリ', 'メニュー', '売価(税込)', '原価', '原価率', 'アレルゲン'], ...recipes().map(r => { const c = recipeCost(r); return [r.cat, r.name, num(r.price), Math.round(c.cost), isFinite(c.rate) ? (c.rate * 100).toFixed(1) + '%' : '', c.allergens.join('・')]; })];
+A.recipeCSV = () => saveFile('原価表.csv', toCSV(recipeRows()));
+A.recipePrint = () => printTable('原価表.html', '原価表', recipeRows(), { n: [2, 3, 4], note: '原価は食材マスタの単価×使用量から計算した1人前あたりの金額（税抜）。原価率は売価を税抜に直して割っています。' });
 
 /* ---------- アレルゲン表 ---------- */
 let allgAll = false;
@@ -1689,7 +1726,7 @@ P.cash = {
     const tin = sum(lines, l => l.inAmt), tout = sum(lines, l => l.outAmt);
     return `<div class="stats">${stat('前月繰越', carry == null ? '計算中…' : yen(carry))}${stat('入金', yen(tin))}${stat('出金', yen(tout))}${stat('現在残高', carry == null ? '…' : yen(num(carry) + tin - tout), '手元の小口現金と一致するか確認')}</div>
     ${closeBar('cash', S.month)}
-    <div class="toolbar"><button class="btn primary" data-act="cashAdd">＋ 出金（支払）</button><button class="btn" data-act="cashAdd" data-k="in">＋ 入金（補充）</button><span class="sp"></span><button class="btn" data-act="cashCSV">出納帳CSV</button></div>
+    <div class="toolbar"><button class="btn primary" data-act="cashAdd">＋ 出金（支払）</button><button class="btn" data-act="cashAdd" data-k="in">＋ 入金（補充）</button><span class="sp"></span><button class="btn" data-act="cashCSV">出納帳CSV</button><button class="btn" data-act="cashPrint">A4の印刷用に保存</button></div>
     ${lines.length ? `<div class="tw"><table class="tbl"><thead><tr><th>日付</th><th>摘要</th><th>勘定科目</th><th class="n">入金</th><th class="n">出金</th><th class="n">残高</th><th></th></tr></thead><tbody><tr class="dim"><td>${dLabel(S.month + '-01')}</td><td>前月より繰越</td><td></td><td></td><td></td><td class="n">${yen(carry)}</td><td></td></tr>${rows}</tbody><tfoot><tr><td colspan="3">合計</td><td class="n">${yen(tin)}</td><td class="n">${yen(tout)}</td><td class="n">${carry == null ? '' : yen(num(carry) + tin - tout)}</td><td></td></tr></tfoot></table></div>`
         : emptyBox(ymLabel(S.month) + 'の記帳はまだありません', '買い出しや備品の購入など、小口現金から支払ったものを記帳します', '<button class="btn primary" data-act="cashAdd">＋ 出金（支払）</button>')}
     <p class="hint">経費帳・仕入帳で支払方法を「小口現金」にした取引も自動でここに載ります（二重に入力しないでください）。</p>`;
@@ -1701,11 +1738,15 @@ A.cashEdit = el => {
   else if (src === 'exp') expCrud.edit(Store.get(MK('exp', S.month), id));
   else purchCrud.edit(Store.get(MK('purch', S.month), id));
 };
-A.cashCSV = async () => {
+const cashTableRows = async () => {
   const carry = await cashCarry(S.month); let bal = carry;
-  const rows = cashLines(S.month).map(l => { bal += l.inAmt - l.outAmt; return [l.date, l.desc, l.account, l.inAmt || '', l.outAmt || '', bal]; });
-  saveFile(`小口現金出納帳_${S.month}.csv`, toCSV([['日付', '摘要', '勘定科目', '入金', '出金', '残高'], [S.month + '-01', '前月繰越', '', '', '', carry], ...rows]));
+  const lines = cashLines(S.month);
+  const rows = lines.map(l => { bal += l.inAmt - l.outAmt; return [l.date, l.desc, l.account, l.inAmt || '', l.outAmt || '', bal]; });
+  return [['日付', '摘要', '勘定科目', '入金', '出金', '残高'], [S.month + '-01', '前月繰越', '', '', '', carry], ...rows,
+    ['合計', '', '', sum(lines, l => l.inAmt), sum(lines, l => l.outAmt), bal]];
 };
+A.cashCSV = async () => saveFile(`小口現金出納帳_${S.month}.csv`, toCSV(await cashTableRows()));
+A.cashPrint = async () => printTable(`小口現金出納帳_${S.month}.html`, `小口現金出納帳　${ymLabel(S.month)}`, await cashTableRows(), { foot: true, n: [3, 4, 5], note: '経費帳・仕入帳で支払方法を「小口現金」にした取引も含みます。月末の残高と、実際の手元現金が合うか確認してください。' });
 
 /* ---------- 経費帳 ---------- */
 const F_EXP = [
@@ -1734,14 +1775,16 @@ P.exp = {
   render() {
     const list = expLines(S.month); const byA = groupBy(list, e => e.account || '雑費');
     return `<div class="stats">${stat('経費合計（事業分）', yen(sum(list, e => e.biz)), list.length + '件')}${Object.keys(byA).sort((a, b) => sum(byA[b], e => e.biz) - sum(byA[a], e => e.biz)).slice(0, 3).map(k => stat(k, yen(sum(byA[k], e => e.biz)))).join('')}</div>
-    <div class="toolbar"><button class="btn primary" data-act="expAdd">＋ 経費を記帳</button><span class="sp"></span><button class="btn" data-act="expCSV">経費帳CSV</button></div>
+    <div class="toolbar"><button class="btn primary" data-act="expAdd">＋ 経費を記帳</button><span class="sp"></span><button class="btn" data-act="expCSV">経費帳CSV</button><button class="btn" data-act="expPrint">A4の印刷用に保存</button></div>
     ${list.length ? `<div class="tw"><table class="tbl"><thead><tr><th>日付</th><th>支払先・摘要</th><th>勘定科目</th><th class="n">金額</th><th class="n">事業分</th><th>税率</th><th>支払方法</th><th>インボイス</th><th></th></tr></thead><tbody>${list.map(e => `<tr class="click" data-act="expEdit" data-src="${esc(e.src)}" data-id="${esc(e.id)}"><td>${dLabel(e.date)}</td><td class="wrap">${esc(e.payee || '')}${e.note ? ` <span class="small muted">${esc(e.note)}</span>` : ''}${e.src === 'cash' ? ' <span class="pill">小口から</span>' : ''}</td><td>${esc(e.account || '')}</td><td class="n">${yen(e.amount)}</td><td class="n">${yen(e.biz)}</td><td>${esc(TAXLABEL[num(e.tax)] || '')}</td><td>${esc(e.pay || '')}</td><td>${e.invoice ? '<span class="pill ok">あり</span>' : ''}</td><td>${receiptLink(e)}</td></tr>`).join('')}</tbody></table></div>
     <section class="sec" style="margin-top:22px"><h3>勘定科目別</h3><div class="tw"><table class="tbl"><thead><tr><th>勘定科目</th><th class="n">件数</th><th class="n">事業分合計</th></tr></thead><tbody>${Object.keys(byA).map(k => `<tr><td>${esc(k)}</td><td class="n">${byA[k].length}</td><td class="n">${yen(sum(byA[k], e => e.biz))}</td></tr>`).join('')}</tbody></table></div></section>`
         : emptyBox(ymLabel(S.month) + 'の経費はまだありません', '家賃・水道光熱費・通信費・消耗品など、仕入以外の支払を記帳します', '<button class="btn primary" data-act="expAdd">＋ 経費を記帳</button>')}
     <p class="hint">仕入（食材・酒類）は「仕入帳」へ。小口現金出納帳の出金もここに合算して表示しています。</p>`;
   }
 };
-A.expCSV = () => { const list = expLines(S.month); saveFile(`経費帳_${S.month}.csv`, toCSV([['日付', '支払先・摘要', '勘定科目', '金額(税込)', '事業分', '税率', '支払方法', '適格請求書', 'メモ'], ...list.map(e => [e.date, e.payee, e.account, num(e.amount), e.biz, TAXLABEL[num(e.tax)] || '', e.pay, e.invoice ? '○' : '', e.note || ''])])); };
+const expRows = () => { const list = expLines(S.month); return [['日付', '支払先・摘要', '勘定科目', '金額(税込)', '事業分', '税率', '支払方法', '適格請求書', 'メモ'], ...list.map(e => [e.date, e.payee, e.account, num(e.amount), e.biz, TAXLABEL[num(e.tax)] || '', e.pay, e.invoice ? '○' : '', e.note || '']), ['合計', '', '', sum(list, e => e.amount), sum(list, e => e.biz), '', '', '', '']]; };
+A.expCSV = () => saveFile(`経費帳_${S.month}.csv`, toCSV(expRows()));
+A.expPrint = () => printTable(`経費帳_${S.month}.html`, `経費帳　${ymLabel(S.month)}`, expRows(), { foot: true, fs: '8.2pt', n: [3, 4], note: '「事業分」は家事按分の割合をかけたあとの、経費にできる金額です。小口現金から払ったものも含みます。' });
 
 /* ---------- 売掛・買掛 ---------- */
 const F_DEP = [
@@ -1797,13 +1840,15 @@ P.fixed = {
   render() {
     const list = Store.list('fixed').sort(byDate).map(a => ({ a, d: deprSchedule(a, S.year) })).filter(x => Number(String(x.a.date).slice(0, 4)) <= S.year);
     return `<div class="stats">${stat(S.year + '年の減価償却費（事業分）', yen(sum(list, x => x.d.biz)))}${stat('期末帳簿価額合計', yen(sum(list, x => x.d.close)))}${stat('資産数', list.length)}</div>
-    <div class="toolbar"><button class="btn primary" data-act="fixedAdd">＋ 資産を登録</button><span class="sp"></span><button class="btn" data-act="fixedCSV">台帳CSV</button></div>
+    <div class="toolbar"><button class="btn primary" data-act="fixedAdd">＋ 資産を登録</button><span class="sp"></span><button class="btn" data-act="fixedCSV">台帳CSV</button><button class="btn" data-act="fixedPrint">A4の印刷用に保存</button></div>
     ${list.length ? `<div class="tw"><table class="tbl"><thead><tr><th>名称</th><th>科目</th><th>取得日</th><th class="n">取得価額</th><th>方法</th><th class="n">耐用年数</th><th class="n">期首帳簿価額</th><th class="n">本年償却費</th><th class="n">事業分</th><th class="n">期末帳簿価額</th></tr></thead><tbody>${list.map(({ a, d }) => `<tr class="click" data-act="fixedEdit" data-id="${esc(a.id)}"><td><b>${esc(a.name)}</b></td><td>${esc(a.account)}</td><td>${esc(a.date)}</td><td class="n">${yen(a.cost)}</td><td>${esc(a.method)}</td><td class="n">${a.method === '定額法' ? esc(a.life) + '年' : '—'}</td><td class="n">${yen(d.open)}</td><td class="n">${yen(d.dep)}</td><td class="n">${yen(d.biz)}</td><td class="n">${yen(d.close)}</td></tr>`).join('')}</tbody><tfoot><tr><td colspan="7">合計</td><td class="n">${yen(sum(list, x => x.d.dep))}</td><td class="n">${yen(sum(list, x => x.d.biz))}</td><td class="n">${yen(sum(list, x => x.d.close))}</td></tr></tfoot></table></div>`
         : emptyBox('固定資産が登録されていません', '10万円以上の厨房機器・内装工事・レジ・パソコンなどを登録すると、毎年の減価償却費を計算します', '<button class="btn primary" data-act="fixedAdd">＋ 資産を登録</button>')}
     <p class="hint">個人事業の減価償却は定額法が原則です。初年度は使い始めた月からの月割り。10万円未満のものは経費帳で「消耗品費」として処理します。</p>`;
   }
 };
-A.fixedCSV = () => saveFile(`固定資産台帳_${S.year}.csv`, toCSV([['名称', '数量', '勘定科目', '取得日', '取得価額', '償却方法', '耐用年数', '期首帳簿価額', '本年償却費', '事業専用割合', '本年必要経費算入額', '期末帳簿価額'], ...Store.list('fixed').sort(byDate).map(a => { const d = deprSchedule(a, S.year); return [a.name, a.qty, a.account, a.date, num(a.cost), a.method, a.life, d.open, d.dep, (a.ratio === '' || a.ratio == null ? 100 : a.ratio) + '%', d.biz, d.close]; })]));
+const fixedRows = () => { const list = Store.list('fixed').sort(byDate); const ds = list.map(a => deprSchedule(a, S.year)); return [['名称', '数量', '勘定科目', '取得日', '取得価額', '償却方法', '耐用年数', '期首帳簿価額', '本年償却費', '事業専用割合', '本年必要経費算入額', '期末帳簿価額'], ...list.map((a, i) => [a.name, a.qty, a.account, a.date, num(a.cost), a.method, a.life, ds[i].open, ds[i].dep, (a.ratio === '' || a.ratio == null ? 100 : a.ratio) + '%', ds[i].biz, ds[i].close]), ['合計', '', '', '', sum(list, a => a.cost), '', '', sum(ds, d => d.open), sum(ds, d => d.dep), '', sum(ds, d => d.biz), sum(ds, d => d.close)]]; };
+A.fixedCSV = () => saveFile(`固定資産台帳_${S.year}.csv`, toCSV(fixedRows()));
+A.fixedPrint = () => printTable(`固定資産台帳_${S.year}.html`, `固定資産台帳　${S.year}年`, fixedRows(), { land: true, fs: '7.6pt', foot: true, n: [1, 4, 6, 7, 8, 10, 11], note: '青色申告決算書3ページ目の「減価償却費の計算」に対応します。' });
 
 /* ---------- 売上日計表（税理士提出用） ---------- */
 const cashOf = r => { const s = num(r.cashLunch) + num(r.cashDinner); return s || num(r.cash); };
@@ -1936,7 +1981,7 @@ P.annual = {
     const expTot = sum(exps, tot);
     const rowsA = ['売上高', '仕入高', ...exps];
     return `<div class="note-box">青色申告決算書（一般用）の1ページ目に対応する数字です。${S.year}年1月〜12月の日報・仕入帳・経費帳・小口現金出納帳・給与・固定資産台帳から集計しています。家賃の家事按分や年末の未払・前払などの決算整理は反映していないので、最終的な数字は会計ソフトや税理士さんと確認してください。</div>
-    <div class="toolbar"><button class="btn" data-act="annualReload">再集計</button><span class="sp"></span><button class="btn primary" data-act="journalCSV">仕訳帳CSV（会計ソフト取込用）</button><button class="btn" data-act="annualCSV">月別集計CSV</button></div>
+    <div class="toolbar"><button class="btn" data-act="annualReload">再集計</button><span class="sp"></span><button class="btn primary" data-act="journalCSV">仕訳帳CSV（会計ソフト取込用）</button><button class="btn" data-act="annualCSV">月別集計CSV</button><button class="btn" data-act="annualPrint">月別集計をA4印刷</button><button class="btn" data-act="journalPrint">仕訳帳をA4印刷</button></div>
     <div class="grid g2" style="margin-bottom:24px">
       <div class="card"><h3>損益計算（青色申告決算書 形式）</h3><dl class="kv">
         <dt>① 売上（収入）金額</dt><dd>${yen(sales)}</dd>
@@ -1956,8 +2001,12 @@ P.annual = {
   }
 };
 A.annualReload = () => { S.cache = {}; for (const k in Store.data) if (Store.data[k].once) delete Store.data[k]; render(); };
-A.journalCSV = () => { const R = S.cache['annual_' + S.year]; if (!R) return; saveFile(`仕訳帳_${S.year}.csv`, toCSV([['伝票番号', '日付', '借方勘定科目', '借方金額', '借方税区分', '貸方勘定科目', '貸方金額', '貸方税区分', '摘要'], ...R.J.map(r => [r[0], r[1].replace(/-/g, '/'), ...r.slice(2)])])); };
-A.annualCSV = () => { const R = S.cache['annual_' + S.year]; if (!R) return; saveFile(`月別集計_${S.year}.csv`, toCSV([['勘定科目', ...Array.from({ length: 12 }, (_, i) => (i + 1) + '月'), '合計'], ...Object.keys(R.acc).map(a => [a, ...R.acc[a].map(Math.round), Math.round(sum(R.acc[a]))])])); };
+const journalRows = () => { const R = S.cache['annual_' + S.year]; return R ? [['伝票番号', '日付', '借方勘定科目', '借方金額', '借方税区分', '貸方勘定科目', '貸方金額', '貸方税区分', '摘要'], ...R.J.map(r => [r[0], r[1].replace(/-/g, '/'), ...r.slice(2)])] : null; };
+const annualTableRows = () => { const R = S.cache['annual_' + S.year]; return R ? [['勘定科目', ...Array.from({ length: 12 }, (_, i) => (i + 1) + '月'), '合計'], ...Object.keys(R.acc).map(a => [a, ...R.acc[a].map(Math.round), Math.round(sum(R.acc[a]))])] : null; };
+A.journalCSV = () => { const rows = journalRows(); if (rows) saveFile(`仕訳帳_${S.year}.csv`, toCSV(rows)); };
+A.annualCSV = () => { const rows = annualTableRows(); if (rows) saveFile(`月別集計_${S.year}.csv`, toCSV(rows)); };
+A.journalPrint = () => { const rows = journalRows(); if (rows) printTable(`仕訳帳_${S.year}.html`, `仕訳帳　${S.year}年`, rows, { land: true, fs: '7pt', n: [3, 6], note: '複合仕訳は同じ伝票番号で複数行になります。' }); };
+A.annualPrint = () => { const rows = annualTableRows(); if (rows) printTable(`月別集計_${S.year}.html`, `勘定科目別・月別集計　${S.year}年`, rows, { land: true, fs: '7.4pt', n: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13], note: '青色申告決算書の2ページ目「月別売上（収入）金額及び仕入金額」などの確認に使えます。金額は税込。' }); };
 
 /* ---------- 設定・バックアップ ---------- */
 const F_SET = [
