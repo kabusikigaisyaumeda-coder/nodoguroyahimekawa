@@ -2,7 +2,7 @@
 <html lang="ja"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-azc0Zm+chVdjWQPG5Ug0hdJmFf+xWKsc3Q+gUjrfos0='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-kq8a+jy5aPWppqYWQU7zFKbl0QN2J512yDvioI0KQG0='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data:; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex">
 <title>ご予約フォーム</title>
@@ -84,7 +84,8 @@ button.send:disabled{opacity:.55;cursor:default}
       <small id="dateHint"></small></label>
     <div class="row2">
       <label class="f"><span class="lb">ご希望時間<span class="req">必須</span></span>
-        <select id="time" name="time" required></select></label>
+        <select id="time" name="time" required></select>
+        <small id="timeHint"></small></label>
       <label class="f"><span class="lb">席のご希望<span class="opt">任意</span></span>
         <select id="seat" name="seat"></select></label>
     </div>
@@ -164,6 +165,81 @@ button.send:disabled{opacity:.55;cursor:default}
   var dLong = function (s) { var p = s.split('-').map(Number); var d = new Date(p[0], p[1] - 1, p[2]); return p[0] + '年' + p[1] + '月' + p[2] + '日（' + DOW[d.getDay()] + '）'; };
   var ALG = ['えび', 'かに', 'くるみ', '小麦', 'そば', '卵', '乳', '落花生', 'カシューナッツ'];
   var CFG = null, opened = Date.now();
+  var DAY = null, DAYKEY = '', INV = { t2: 0, t4: 0, za: 0 }, TURN = 120, busy = false;
+  var hhmm = function (s) { var m = /(\d{1,2}):(\d{2})/.exec(String(s || '')); return m ? Number(m[1]) * 60 + Number(m[2]) : null; };
+  // 人数と席の希望から、必要な卓の組み合わせ（候補）を出す
+  function planList(n, pref) {
+    var k = Math.max(1, Math.ceil(n / 4));
+    if (n <= 2) {
+      if (/座敷/.test(pref)) return [{ za: 1 }];
+      if (/2名/.test(pref)) return [{ t2: 1 }, { t4: 1 }];
+      if (/4名/.test(pref)) return [{ t4: 1 }];
+      return [{ t2: 1 }, { t4: 1 }, { za: 1 }];
+    }
+    if (n <= 4) {
+      if (/座敷/.test(pref)) return [{ za: 1 }];
+      if (/テーブル/.test(pref)) return [{ t4: 1 }];
+      return [{ t4: 1 }, { za: 1 }];
+    }
+    if (/座敷/.test(pref)) return [{ za: k }];
+    if (/テーブル/.test(pref)) return [{ t4: k }];
+    return [{ t4: k }, { za: k }];
+  }
+  // その時間に重なっている予約が使っている卓数
+  function usedAt(mins) {
+    var u = { t2: 0, t4: 0, za: 0 };
+    (DAY || []).forEach(function (r) {
+      var m = hhmm(r.t); if (m == null || Math.abs(m - mins) >= TURN) return;
+      if (r.a) { u.t2 += Number(r.a.t2) || 0; u.t4 += Number(r.a.t4) || 0; u.za += Number(r.a.za) || 0; }
+      else {
+        var k = Math.max(1, Math.ceil((Number(r.n) || 1) / 4));
+        if (/座敷/.test(r.s || '')) u.za += k; else if ((Number(r.n) || 1) <= 2) u.t2 += 1; else u.t4 += k;
+      }
+    });
+    return u;
+  }
+  function fits(mins, n, pref) {
+    var u = usedAt(mins);
+    return planList(n, pref).some(function (p) {
+      return (u.t2 + (p.t2 || 0)) <= INV.t2 && (u.t4 + (p.t4 || 0)) <= INV.t4 && (u.za + (p.za || 0)) <= INV.za;
+    });
+  }
+  // 選んだ日の予約状況を取りに行く（名前・電話は返ってきません）
+  function loadDay(cb) {
+    var d = $('date').value;
+    if (!d) { DAY = null; DAYKEY = ''; return cb && cb(); }
+    if (d === DAYKEY) return cb && cb();
+    busy = true; markTimes();
+    fetch(SB + '/rest/v1/rpc/resv_day', { method: 'POST', headers: { apikey: KEY, Authorization: 'Bearer ' + KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ d: d }) })
+      .then(function (r) { return r.ok ? r.json() : []; })
+      .then(function (rows) { DAY = Array.isArray(rows) ? rows : []; DAYKEY = d; })
+      .catch(function () { DAY = null; DAYKEY = ''; })
+      .then(function () { busy = false; markTimes(); cb && cb(); });
+  }
+  // 時間のプルダウンに「満席」を付ける
+  function markTimes() {
+    var sel = $('time'); if (!sel) return;
+    var n = Number($('adults').value || 0) + Number($('kids').value || 0);
+    var pref = $('seat').value || '';
+    var any = false;
+    Array.prototype.forEach.call(sel.options, function (o) {
+      if (!o.value) return;
+      var base = o.dataset.label || o.textContent; o.dataset.label = base;
+      if (busy) { o.disabled = false; o.textContent = base; any = true; return; }
+      if (DAY == null || !n) { o.disabled = false; o.textContent = base; any = true; return; }
+      var ok = fits(hhmm(o.value), n, pref);
+      o.disabled = !ok;
+      o.textContent = base + (ok ? '' : '（満席）');
+      if (ok) any = true;
+    });
+    if (sel.selectedOptions[0] && sel.selectedOptions[0].disabled) sel.value = '';
+    var hint = $('timeHint');
+    if (hint) hint.textContent = busy ? '空き状況を確認しています…'
+      : DAY == null ? ''
+        : !n ? '人数をお選びいただくと、満席の時間が分かります'
+          : any ? '「満席」と出ている時間はお選びいただけません'
+            : 'この日はご希望の人数でのお席が満席です。別の日をお選びいただくか、お電話でご相談ください。';
+  }
 
   function opt(sel, list, blank) {
     sel.innerHTML = (blank ? '<option value="">' + esc(blank) + '</option>' : '') +
@@ -183,6 +259,8 @@ button.send:disabled{opacity:.55;cursor:default}
     $('leadNote').innerHTML = '<b>このフォームは仮のお申し込みです。</b>お店からご連絡した時点でご予約の確定となります。'
       + (lead > 0 ? '<br>当日・' + (lead > 1 ? lead + '日以内' : '本日') + 'のご予約は、恐れ入りますがお電話でお願いいたします。' : '');
 
+    INV = { t2: Number(c.t2) || 0, t4: Number(c.t4) || 0, za: Number(c.za) || 0 };
+    TURN = Math.max(30, Number(c.turn) || 120);
     var times = split(c.lunch).map(function (t) { return 'ランチ ' + t; }).concat(split(c.dinner).map(function (t) { return 'ディナー ' + t; }));
     opt($('time'), times, '選んでください');
     opt($('seat'), split(c.seats).length ? split(c.seats) : ['おまかせ'], '');
@@ -198,6 +276,10 @@ button.send:disabled{opacity:.55;cursor:default}
     var telHtml = c.tel ? 'お電話でのご予約・ご相談は <a href="tel:' + esc(c.tel.replace(/[^0-9+]/g, '')) + '">' + esc(c.tel) + '</a>' : '';
     $('ftTel').innerHTML = telHtml; $('doneTel').innerHTML = telHtml;
     $('shopFt').innerHTML = esc(c.shop || '') + (c.addr ? '<br>' + esc(c.addr) : '') + (c.note ? '<br>' + esc(c.note) : '');
+    $('date').addEventListener('change', function () { loadDay(); });
+    $('adults').addEventListener('change', markTimes);
+    $('kids').addEventListener('change', markTimes);
+    $('seat').addEventListener('change', markTimes);
     $('load').classList.add('hide'); $('fm').classList.remove('hide');
   }
 
@@ -238,13 +320,17 @@ button.send:disabled{opacity:.55;cursor:default}
     if (v.mail && !/^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(v.mail)) return showErr('メールアドレスをご確認ください。');
     if (!$('agree').checked) return showErr('キャンセルについて・個人情報の取り扱いへのご同意が必要です。');
 
+    if (DAY != null && !fits(hhmm(v.time), Number(v.adults) + Number(v.kids), v.seat)) {
+      markTimes();
+      return showErr('あいにくこのお時間は満席です。別のお時間をお選びいただくか、お電話でご相談ください。');
+    }
     var b = $('go'); b.disabled = true; b.textContent = '送信しています…';
-    fetch(SB + '/rest/v1/public_resv', {
+    fetch(SB + '/rest/v1/rpc/book_resv', {
       method: 'POST',
-      headers: { apikey: KEY, Authorization: 'Bearer ' + KEY, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-      body: JSON.stringify({ data: v })
+      headers: { apikey: KEY, Authorization: 'Bearer ' + KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ payload: v })
     }).then(function (r) {
-      if (!r.ok) return r.text().then(function (t) { throw new Error(t || String(r.status)); });
+      if (!r.ok) return r.json().catch(function () { return {}; }).then(function (j) { throw new Error(j.message || String(r.status)); });
       var rows = [['ご来店日', dLong(v.date)], ['お時間', v.time], ['人数', '大人 ' + v.adults + '名' + (Number(v.kids) ? '／お子様 ' + v.kids + '名' : '')],
         ['お名前', v.name + ' 様'], ['お電話', v.tel]];
       if (v.course) rows.push(['ご利用', v.course]);
@@ -255,7 +341,8 @@ button.send:disabled{opacity:.55;cursor:default}
     }).catch(function (e) {
       b.disabled = false; b.textContent = 'この内容で予約を申し込む';
       var m = String(e.message || '');
-      showErr(/混み合|too many/.test(m) ? '送信が混み合っています。少し時間をおいてからお試しください。'
+      DAYKEY = ''; loadDay();
+      showErr(/満席|受付停止|混み合|入力内容|入力が長|必須/.test(m) ? m
         : '送信できませんでした。お手数ですが、もう一度お試しいただくかお電話でご連絡ください。');
     });
   });
