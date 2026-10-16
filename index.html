@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-Y6BH8tztIDzPdH70pLxMZivgZPQ6bPbtmkR0jjzhprk='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data: blob: https://tzmptqweehooidklvhpv.supabase.co; object-src https://tzmptqweehooidklvhpv.supabase.co; base-uri 'none'; form-action 'none'; manifest-src 'self'"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="のどぐろ家姫川"><meta name="theme-color" content="#23467A"></head><body>
+<html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-Z0ginO3gk/rWDM7+3J7rYcPgeY1XSscXmtaIdgWqkdY='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data: blob: https://tzmptqweehooidklvhpv.supabase.co; object-src https://tzmptqweehooidklvhpv.supabase.co; base-uri 'none'; form-action 'none'; manifest-src 'self'"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="のどぐろ家姫川"><meta name="theme-color" content="#23467A"></head><body>
 <title>のどぐろ家姫川</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -608,6 +608,126 @@ const SB = {
   },
   async signed(path) { const j = await this.req('/storage/v1/object/sign/receipts/' + path, { method: 'POST', body: { expiresIn: 600 } }); return SB_URL + '/storage/v1' + j.signedURL; },
 };
+/* ===================== お客様用の予約フォーム（Web予約） ===================== */
+const FORM_URL = () => location.href.replace(/[?#].*$/, '').replace(/[^/]*$/, '') + 'form.html';
+const WEBR = {
+  list: [], loaded: false, busy: false, at: 0,
+  async load(force) {
+    if (this.busy) return; if (!force && Date.now() - this.at < 20000) return;
+    this.busy = true; this.at = Date.now();
+    try {
+      this.list = await SB.req('/rest/v1/public_resv?status=eq.' + encodeURIComponent('未確認') + '&select=*&order=created_at.asc&limit=200');
+      this.loaded = true;
+    } catch (e) { /* 読めないときは静かに見送る */ }
+    this.busy = false; scheduleRender();
+  },
+  get n() { return this.list.length; },
+};
+// Web予約1件を予約台帳の形に直す
+function webrToResv(r) {
+  const d = r.data || {};
+  return {
+    date: d.date,
+    time: String(d.time || '').replace(/^\s*(ランチ|ディナー)\s*/, ''),
+    name: d.name + (d.kana ? `（${d.kana}）` : ''),
+    tel: d.tel || '',
+    people: num(d.adults) + num(d.kids),
+    seat: d.seat === 'おまかせ' ? '' : (d.seat || ''),
+    course: [d.course, num(d.kids) ? 'お子様' + num(d.kids) + '名' : ''].filter(Boolean).join(' / '),
+    allergy: [...(d.alg || []), d.algNote].filter(Boolean).join('、'),
+    status: '予約',
+    via: 'ネット予約',
+    note: [d.mail ? 'メール：' + d.mail : '', d.note, 'Web予約（' + new Date(r.created_at).toLocaleString('ja-JP') + ' 受信）'].filter(Boolean).join('\n'),
+  };
+}
+function webrCard(r) {
+  const d = r.data || {}; const v = webrToResv(r);
+  const warn = [];
+  if (d.date && d.date < today()) warn.push('日付が過ぎています');
+  if (v.allergy) warn.push('アレルギーの記載あり');
+  return `<div class="card" style="margin-bottom:12px;border-left:3px solid var(--accent)">
+    <div class="row" style="align-items:flex-start"><div class="sp">
+      <b style="font-size:16px">${esc(dLabel(d.date))}　${esc(v.time)}　${esc(v.name)} 様　${int(v.people)}名</b>
+      ${num(d.kids) ? `<span class="pill">お子様${int(d.kids)}名</span>` : ''}
+      ${warn.map(w => `<span class="pill warn">${esc(w)}</span>`).join('')}
+      <div class="small muted">受信 ${esc(new Date(r.created_at).toLocaleString('ja-JP'))}</div>
+    </div></div>
+    <div class="tw" style="margin-top:8px"><table class="tbl"><tbody>
+      <tr><td style="width:7.5em;color:var(--muted)">お電話</td><td><a href="tel:${esc(String(d.tel || '').replace(/[^0-9+]/g, ''))}">${esc(d.tel || '')}</a></td></tr>
+      ${d.mail ? `<tr><td style="color:var(--muted)">メール</td><td>${esc(d.mail)}</td></tr>` : ''}
+      ${v.seat || d.seat ? `<tr><td style="color:var(--muted)">席のご希望</td><td>${esc(d.seat || '')}</td></tr>` : ''}
+      ${d.course ? `<tr><td style="color:var(--muted)">ご利用内容</td><td>${esc(d.course)}</td></tr>` : ''}
+      ${v.allergy ? `<tr><td style="color:var(--muted)">アレルギー</td><td><span class="pill bad">${esc(v.allergy)}</span></td></tr>` : ''}
+      ${d.note ? `<tr><td style="color:var(--muted)">ご要望</td><td class="wrap">${esc(d.note)}</td></tr>` : ''}
+    </tbody></table></div>
+    <div class="row" style="margin-top:10px"><button class="btn primary" data-act="webrTake" data-id="${esc(r.id)}">予約台帳に入れる</button>
+      ${d.tel ? `<a class="btn" href="tel:${esc(String(d.tel).replace(/[^0-9+]/g, ''))}">電話する</a>` : ''}
+      <span class="sp"></span><button class="btn danger" data-act="webrNg" data-id="${esc(r.id)}">見送る</button></div>
+  </div>`;
+}
+function webrSection() {
+  if (typeof SB === 'undefined') return '';
+  WEBR.load();
+  if (!WEBR.n) return WEBR.loaded ? '' : '';
+  return `<section class="sec"><h3>Web予約のお申し込み<span class="pill acc">${WEBR.n}件</span><span class="sp"></span><button class="btn sm" data-act="webrReload">更新</button></h3>
+    <p class="hint" style="margin-top:0">内容を確認して「予約台帳に入れる」を押すと、下の予約一覧に入ります。お客様には折り返しご連絡ください。</p>
+    ${WEBR.list.map(webrCard).join('')}</section>`;
+}
+A.webrReload = () => WEBR.load(true);
+A.webrTake = async el => {
+  const r = WEBR.list.find(x => x.id === el.dataset.id); if (!r) return;
+  const v = webrToResv(r);
+  if (!v.date) { toast('日付が読み取れませんでした'); return; }
+  const id = uid();
+  await Store.put(MK('resv', ymOf(v.date)), id, v);
+  try { await SB.req('/rest/v1/public_resv?id=eq.' + encodeURIComponent(r.id), { method: 'PATCH', body: { status: '取込済', resv_id: id, handled_at: new Date().toISOString() } }); }
+  catch (e) { toast('台帳には入りましたが、受付箱の印が付きませんでした'); }
+  S.month = ymOf(v.date); S.cache = {};
+  toast(`${v.name} 様のご予約を台帳に入れました`);
+  WEBR.load(true);
+};
+A.webrNg = async el => {
+  const r = WEBR.list.find(x => x.id === el.dataset.id); if (!r) return;
+  if (!confirmDel('（お断り・いたずら等として受付箱から外します。予約台帳には入りません）')) return;
+  try { await SB.req('/rest/v1/public_resv?id=eq.' + encodeURIComponent(r.id), { method: 'PATCH', body: { status: '見送り', handled_at: new Date().toISOString() } }); toast('見送りにしました'); }
+  catch (e) { toast('変更できませんでした'); }
+  WEBR.load(true);
+};
+/* 予約フォームの設定（公開ページが読みに行く内容） */
+const F_FORM = [
+  { k: 'on', label: 'Web予約の受付', type: 'check', cl: 'お客様用の予約フォームを受け付ける（外すと「受付停止中」と表示されます）' },
+  { k: 'shop', label: 'フォームに出す店名' },
+  { k: 'tel', label: '電話番号（フォームに表示）', type: 'tel', ph: '025-000-0000' },
+  { k: 'addr', label: '住所（フォームに表示）', full: true },
+  { k: 'leadDays', label: '何日前まで受け付けるか', type: 'num', hint: '1＝前日まで（当日は電話のみ）／0＝当日も受け付ける' },
+  { k: 'months', label: '何ヶ月先まで受け付けるか', type: 'num' },
+  { k: 'maxPeople', label: '1組の人数の上限', type: 'num', hint: 'これを超えると「お電話でご相談ください」と出ます' },
+  { k: 'lunch', label: 'ランチの時間', full: true, hint: 'カンマ区切り。空欄にするとランチの選択肢は出ません' },
+  { k: 'dinner', label: 'ディナーの時間', full: true, hint: 'カンマ区切り' },
+  { k: 'seats', label: '席の選択肢', full: true, hint: 'カンマ区切り' },
+  { k: 'courses', label: 'ご利用内容の選択肢', type: 'textarea', hint: '1行に1つ' },
+  { k: 'cancel', label: 'キャンセルについての文言', type: 'textarea' },
+  { k: 'privacy', label: '個人情報の取り扱いの文言', type: 'textarea' },
+  { k: 'note', label: 'フォームのいちばん下に出す一言', full: true },
+];
+let formCfg = null;
+A.formCfg = async () => {
+  try { const r = await SB.req('/rest/v1/public_info?id=eq.form&select=data'); formCfg = (r && r[0] && r[0].data) || {}; }
+  catch (e) { toast('フォームの設定を読めませんでした：' + e.message); return; }
+  openForm({
+    title: 'お客様用 予約フォームの設定', fields: F_FORM, value: formCfg, wide: true,
+    onSave: async v => {
+      delete v.id;
+      const data = { ...formCfg, ...v };
+      try {
+        await SB.req('/rest/v1/public_info?on_conflict=id', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates' }, body: [{ id: 'form', data, updated_at: new Date().toISOString() }] });
+        formCfg = data; toast('保存しました（フォームにすぐ反映されます）');
+      } catch (e) { toast('保存できませんでした：' + e.message); return false; }
+    },
+  });
+};
+A.formOpen = () => { const a = document.createElement('a'); a.href = FORM_URL(); a.target = '_blank'; a.rel = 'noopener'; a.style.display = 'none'; document.body.appendChild(a); a.click(); setTimeout(() => a.remove(), 500); };
+A.formCopy = async () => { try { await navigator.clipboard.writeText(FORM_URL()); toast('予約フォームのURLをコピーしました'); } catch (e) { toast(FORM_URL()); } };
 /* ===================== 計算ロジック ===================== */
 // 勤怠1件：実働・深夜（22-5時）・休憩
 function timeCalc(t, openNow) {
@@ -794,6 +914,7 @@ P.home = {
     if (hcToday && hcToday.filled && hcToday.ng.length) alerts.push(['warn', `今日の衛生記録に未確認あり：${hcToday.ng.join('・')}`, 'daily', '記入']);
     if (todayDaily && !hcToday.filled) alerts.push(['acc', '今日の衛生記録が未記入です（日報の中にあります）', 'daily', '記入']);
     const pm = addMonth(ym, -1), openYM = set.openDate ? ymOf(set.openDate) : '';
+    if (typeof WEBR !== 'undefined') { WEBR.load(); if (WEBR.n) alerts.unshift(['acc', `Web予約のお申し込みが ${WEBR.n}件 届いています`, 'resv', '確認']); }
     const closeTodo = Number(td.slice(8, 10)) >= 5 && (!openYM || pm >= openYM)
       ? CLOSE_KINDS.filter(([k]) => !closeDone(k, pm)).map(([k, l]) => `<div class="alert"><span class="pill acc">要確認</span><span class="sp">${esc(ymLabel(pm))}の${esc(l)}が「完了」になっていません</span><button class="btn sm" data-act="closeGo" data-k="${esc(k)}" data-ym="${esc(pm)}">開く</button></div>`).join('') : '';
     return `
@@ -1179,7 +1300,8 @@ P.resv = {
     const by = groupBy(list, r => r.date);
     const active = list.filter(r => r.status !== 'キャンセル' && r.status !== '無断キャンセル');
     return `<div class="stats">${stat('予約件数', active.length + '件', sum(active, r => r.people) + '名')}${stat('来店済み', list.filter(r => r.status === '来店').length + '件')}${stat('キャンセル', list.filter(r => r.status === 'キャンセル').length + '件')}${stat('無断キャンセル', list.filter(r => r.status === '無断キャンセル').length + '件')}</div>
-    <div class="toolbar"><button class="btn primary" data-act="resvAdd">＋ 予約を追加</button></div>
+    <div class="toolbar"><button class="btn primary" data-act="resvAdd">＋ 予約を追加</button><span class="sp"></span><button class="btn" data-act="formCopy">予約フォームのURLをコピー</button><button class="btn" data-act="formOpen">フォームを開く</button></div>
+    ${webrSection()}
     ${list.length ? Object.keys(by).sort().map(d => `<section class="sec"><h3>${dLabel(d)}${d === td ? ' <span class="pill acc">今日</span>' : ''}<span class="muted small" style="font-family:var(--f-body);font-weight:400">${by[d].filter(r => r.status !== 'キャンセル').length}件・${sum(by[d].filter(r => r.status !== 'キャンセル'), r => r.people)}名</span></h3>
       <div class="tw"><table class="tbl"><thead><tr><th>時間</th><th>お名前</th><th class="n">人数</th><th>席</th><th>コース・内容</th><th>アレルギー</th><th>電話</th><th>状態</th></tr></thead><tbody>${by[d].map(r => `<tr class="click" data-act="resvEdit" data-id="${esc(r.id)}"><td>${esc(r.time || '')}</td><td>${esc(r.name)}</td><td class="n">${int(r.people)}</td><td>${esc(r.seat || '')}</td><td class="wrap">${esc(r.course || '')}</td><td>${r.allergy ? `<span class="pill bad">${esc(r.allergy)}</span>` : ''}</td><td>${esc(r.tel || '')}</td><td>${resvPill(r.status)}</td></tr>`).join('')}</tbody></table></div></section>`).join('')
         : emptyBox(ymLabel(S.month) + 'の予約はありません', '')}`;
@@ -2181,6 +2303,9 @@ P.settings = {
           ${S.owner ? `<div class="row" style="margin-top:10px"><input id="newMember" type="email" placeholder="追加するメールアドレス" style="flex:1;min-width:0;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);min-height:40px"><button class="btn" data-act="memberAdd">追加</button></div>` : '<p class="hint">メンバーの追加・削除はオーナーだけができます。</p>'}
           <div class="row" style="margin-top:14px"><button class="btn danger" data-act="logout">ログアウト</button></div>
         </div>
+        <div class="card"><h3>お客様用の予約フォーム</h3><p class="muted small" style="margin-top:0">お客様が入力した予約は「予約台帳」のいちばん上に届きます。文言・時間帯・人数の上限はここから変えられます。</p>
+          <div class="row"><button class="btn primary" data-act="formCfg">フォームの内容を設定</button><button class="btn" data-act="formOpen">フォームを開く</button><button class="btn" data-act="formCopy">URLをコピー</button></div>
+          <p class="hint">QRコードにしてお店や名刺に載せる場合は、このURLを使ってください。</p></div>
         <div class="card"><h3>バックアップ</h3><p class="muted small" style="margin-top:0">全データをJSONファイルに保存します。月に1回は保存しておくと安心です。</p>
           <div class="row"><button class="btn primary" data-act="backup">バックアップを保存</button>${S.owner ? '<label class="btn" for="restoreFile">バックアップから復元</label><input type="file" id="restoreFile" accept="application/json,.json" data-chg="restore" hidden>' : ''}</div><p class="hint">バックアップには売上・給与・住所などすべてのデータが入っています。保管場所に注意してください。</p>
         </div>
