@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-eL7F/Bz+yrnsjKMqDKzR4a1xm4Pku3PfRJa9a5BIu0M='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data: blob: https://tzmptqweehooidklvhpv.supabase.co; object-src https://tzmptqweehooidklvhpv.supabase.co; base-uri 'none'; form-action 'none'; manifest-src 'self'"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="のどぐろ家姫川"><meta name="theme-color" content="#23467A"></head><body>
+<html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-Lwyz0eBYwA345c3thfBy5hgJbihDD2cd6ynZb/x+wnQ='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data: blob: https://tzmptqweehooidklvhpv.supabase.co; object-src https://tzmptqweehooidklvhpv.supabase.co; base-uri 'none'; form-action 'none'; manifest-src 'self'"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="のどぐろ家姫川"><meta name="theme-color" content="#23467A"></head><body>
 <title>のどぐろ家姫川</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -320,7 +320,7 @@ const DENOMS = [10000, 5000, 1000, 500, 100, 50, 10, 5, 1];
 const WEATHER = ['晴れ', '曇り', '雨', '雪', '晴れ時々曇り', '曇り時々雨'];
 // 定額法の償却率（平成19年4月1日以後取得）
 const SL_RATE = { 2: .5, 3: .334, 4: .25, 5: .2, 6: .167, 7: .143, 8: .125, 9: .112, 10: .1, 11: .091, 12: .084, 13: .077, 14: .072, 15: .067, 16: .063, 17: .059, 18: .056, 19: .053, 20: .05, 22: .046, 24: .042, 25: .04, 30: .034, 34: .03, 39: .026, 47: .022 };
-const DEF_SET = { shop: '', trade: '', owner: '', addr: '', tel: '', invoiceNo: '', openDate: '', float: 30000, cashStart: 0, cashStartMonth: '', coinStart: 0, coinStartMonth: '', invStart: 0, weekLimit: 40, payday: 25, monthlyHours: 173, reportMail: 'kabusikigaisya.umeda@gmail.com' };
+const DEF_SET = { shop: '', trade: '', owner: '', addr: '', tel: '', invoiceNo: '', openDate: '', float: 30000, cashStart: 0, cashStartMonth: '', coinStart: 0, coinStartMonth: '', snsPlace: '糸魚川', snsTag: '', invStart: 0, weekLimit: 40, payday: 25, monthlyHours: 173, reportMail: 'kabusikigaisya.umeda@gmail.com' };
 const DEF_TMPL = [
   { name: '開店前', order: 1, items: ['ガス・換気扇ON', '冷蔵庫・冷凍庫の温度確認', '手洗い・アルコール設置', 'スタッフの体調確認', '客席・トイレ清掃', 'レジ釣銭の準備', '看板・のれんを出す'] },
   { name: '閉店後', order: 2, items: ['ガス元栓を閉める', 'フライヤー・コンロの火の確認', '冷蔵庫の扉を確認', '生ごみ・ごみ出し', '床・厨房清掃', 'レジ締め', '日報を書く', '電気・エアコンOFF', '施錠'] },
@@ -414,7 +414,7 @@ const CHG = {}; // 入力変更
 const S = {
   page: lsGet('rk.page', 'home'), month: curYM(), day: today(), year: new Date().getFullYear(), lastToday: today(), week: today(),
   me: lsGet('rk.me', ''), assets: null, downloads: null, cache: {},
-  rday: '', resvList: lsGet('rk.resvList', false),
+  rday: '', resvList: lsGet('rk.resvList', false), snsDate: '', snsKind: 'arrival',
 };
 const SET = () => ({ ...DEF_SET, ...(Store.get('settings', 'main') || {}) });
 const staffAll = () => Store.list('staff').sort((a, b) => (a.order || 0) - (b.order || 0) || String(a.kana || a.name).localeCompare(String(b.kana || b.name), 'ja'));
@@ -970,7 +970,7 @@ function deprSchedule(a, year) {
 /* ===================== 画面定義 ===================== */
 const NAV = [
   { g: '', items: [['home', 'ホーム']] },
-  { g: '運営', items: [['daily', '日報'], ['check', 'チェックリスト'], ['prep', '仕込みリスト'], ['resv', '予約台帳']] },
+  { g: '運営', items: [['daily', '日報'], ['check', 'チェックリスト'], ['prep', '仕込みリスト'], ['resv', '予約台帳'], ['sns', 'SNS投稿文']] },
   { g: '労務', items: [['time', 'タイムカード'], ['shift', 'シフト表'], ['pay', '給与・賃金台帳'], ['staff', 'スタッフ名簿']] },
   { g: '仕入・在庫', items: [['purch', '仕入帳'], ['order', '発注'], ['inv', '棚卸'], ['waste', '廃棄ロス'], ['items', '食材マスタ'], ['suppliers', '取引先']] },
   { g: 'メニュー', items: [['recipes', 'レシピ・原価'], ['allergen', 'アレルゲン表'], ['menu', 'メニュー制作']] },
@@ -1515,6 +1515,244 @@ A.resvPrintMonth = () => {
 };
 A.resvDay = el => { S.rday = el.dataset.d; render(); };
 A.resvView = () => { S.resvList = !S.resvList; lsSet('rk.resvList', S.resvList); render(); };
+/* ---------- SNS投稿文（型は同じ・言い回しは毎回変わる） ---------- */
+const SNS_KINDS = [
+  ['arrival', '本日の入荷', '仕入帳・日報の仕入から'],
+  ['menu', 'おすすめの一品', 'レシピ・原価のメニューから'],
+  ['seats', '空席のご案内', '予約台帳の空き卓から'],
+  ['week', '今週の魚', '相場表から'],
+  ['info', '営業のお知らせ', 'お店の情報から'],
+];
+const SNS_GREET = [
+  'おはようございます。', 'こんにちは。', '{shop}です。', 'いつもありがとうございます。',
+  '本日も営業いたします。', '今日もよろしくお願いいたします。', '本日も仕込みから始まりました。',
+  'ご覧いただきありがとうございます。', '{shop}、本日も開けております。',
+];
+const SNS_SEASON = {
+  1: ['寒い日が続きますね。', '冬の魚が脂をのせています。', '新しい年もよろしくお願いいたします。'],
+  2: ['底冷えのする時期です。', '寒鰤の美味しい季節です。', '春が待ち遠しい頃ですね。'],
+  3: ['少しずつ春めいてきました。', '春の魚が顔を出しはじめました。', '日が長くなってきましたね。'],
+  4: ['桜の季節になりました。', '新年度が始まりましたね。', '春の味覚が揃ってきました。'],
+  5: ['風が心地よい季節です。', '初夏の魚が入りはじめました。', '過ごしやすい陽気が続きます。'],
+  6: ['梅雨の時期になりました。', '白エビの季節です。', '雨の日が続きますね。'],
+  7: ['暑い日が続きます。', '夏本番ですね。', '冷たい一杯が美味しい季節です。'],
+  8: ['まだまだ暑さが続きます。', '夏休みの時期ですね。', '帰省の季節になりました。'],
+  9: ['朝晩が涼しくなってきました。', '秋の魚が入りはじめました。', '食欲の秋ですね。'],
+  10: ['秋が深まってまいりました。', '魚に脂がのる季節です。', '朝晩が冷えてきましたね。'],
+  11: ['冬の足音が聞こえてきました。', '鍋が恋しい季節になりました。', '寒さが増してきましたね。'],
+  12: ['今年も残りわずかとなりました。', '忘年会の季節です。', '冬の魚が揃ってまいりました。'],
+};
+const SNS_CLOSE = [
+  'ご予約お待ちしております。', 'お席に限りがございますので、お早めにどうぞ。',
+  'ふらりと一杯でも、どうぞお気軽に。', 'カウンターもございます。おひとりさまも歓迎です。',
+  'ご来店を心よりお待ちしております。', 'お料理のご相談もお気軽にどうぞ。',
+  '皆さまのお越しをお待ちしております。', 'お近くにお越しの際はぜひ。',
+];
+const SNS_HASH = [
+  '#のどぐろ', '#日本海', '#新潟グルメ', '#旬の魚', '#海鮮', '#日本酒', '#地酒',
+  '#魚のうまい店', '#今日のおすすめ', '#カウンター席あり', '#座敷あり', '#北陸グルメ',
+  '#新潟', '#魚好きな人と繋がりたい', '#夜ごはん',
+];
+const SNS_TIP = {
+  arrival: ['発泡スチロールから出した直後の、水滴が残っている状態が一番きれいに写ります。',
+    '魚は真上からより、少し斜めから撮ると立体感が出ます。',
+    'まな板の上に一尾だけ置いて、背景を切るとぐっと締まります。'],
+  menu: ['料理は窓際の自然光で、少し斜め上から。照明の下だと黄色くなります。',
+    '器の縁を少し切るくらい寄ると美味しそうに見えます。',
+    '湯気が出ているうちに1枚撮っておくと効果的です。'],
+  seats: ['開店前の、誰も座っていないカウンターの写真が落ち着いて見えます。',
+    '照明を落とした店内を1枚撮っておくと使い回せます。'],
+  week: ['数種類を並べて俯瞰で撮ると「今週の魚」が伝わります。',
+    '黒いバットや石の皿に乗せると魚の色が映えます。'],
+  info: ['のれんや看板の写真が分かりやすいです。', '外観は夕方の、灯りが点いた時間帯がきれいです。'],
+};
+const hashStr = s => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
+const snsSet = () => { const s = SET(); return { shop: s.shop || '당', place: s.snsPlace || '', tag: (s.snsTag || s.shop || '').replace(/\s+/g, ''), tel: s.tel || '' }; };
+let snsSeed = 0, snsDraft = null, snsDraftKey = '';
+// 直近に使った言い回しを避けるための履歴
+function snsRecent() {
+  const out = {};
+  const all = [...L('sns', S.month), ...L('sns', addMonth(S.month, -1))]
+    .sort((a, b) => String(b.at || '').localeCompare(String(a.at || ''))).slice(0, 8);
+  for (const r of all) for (const k of Object.keys(r.used || {})) (out[k] = out[k] || []).push(r.used[k]);
+  return out;
+}
+function snsCtx(key) { return { key, seed: snsSeed, recent: snsRecent(), used: {} }; }
+function snsPick(pool, slot, ctx) {
+  if (!pool || !pool.length) return '';
+  const recent = (ctx.recent[slot] || []).slice(0, Math.max(0, pool.length - 1));
+  const cand = pool.map((_, i) => i).filter(i => !recent.includes(i));
+  const use = cand.length ? cand : pool.map((_, i) => i);
+  const idx = use[hashStr(ctx.key + '|' + slot + '|' + ctx.seed) % use.length];
+  ctx.used[slot] = idx;
+  return pool[idx];
+}
+function snsPickMany(pool, slot, n, ctx) {
+  const start = hashStr(ctx.key + '|' + slot + '|' + ctx.seed) % pool.length;
+  ctx.used[slot] = start;
+  const out = []; for (let i = 0; i < n && i < pool.length; i++) out.push(pool[(start + i * 3) % pool.length]);
+  return [...new Set(out)];
+}
+// 品名から数量を落とす（「のどぐろ 7尾」→「のどぐろ」）
+const snsItemName = x => String(x || '').trim()
+  .replace(/[（(][^）)]*[）)]\s*$/, '')
+  .replace(/\s*[0-9０-９]+(\.[0-9]+)?\s*(尾|kg|ｋｇ|g|枚|本|杯|箱|ケース|p|パック|袋|個|玉|束|切|匹|缶)?\s*$/, '').trim();
+function snsArrivalItems(d) {
+  const seen = new Set(); const out = [];
+  for (const p of L('purch', ymOf(d)).filter(x => x.date === d)) {
+    for (const part of String(p.desc || '').split(/[、,\n・]/)) {
+      const n = snsItemName(part);
+      if (n && n.length <= 14 && !/業務用|一式|調味料|味噌|醤油|乾物|包材|おしぼり|冷凍食材|冷凍品|食材|資材|消耗|割り箸|紙|洗剤|氷|コシヒカリ|米|ビール|日本酒|焼酎|サワー|ワイン|ドリンク/.test(n) && !seen.has(n)) { seen.add(n); out.push(n); }
+    }
+  }
+  return out.slice(0, 6);
+}
+// 本文
+function snsBody(kind, d, ctx) {
+  const s = snsSet();
+  if (kind === 'arrival') {
+    const items = snsArrivalItems(d);
+    if (!items.length) return { text: '', miss: 'この日の仕入帳に品目が入っていません。日報か仕入帳に「のどぐろ 5尾」のように内容を書くと、ここに並びます。' };
+    const list = items.map(x => '・' + x).join('\n');
+    const t = snsPick([
+      `本日はこんな魚が入っております。\n${list}`,
+      `市場から届きました。\n${list}`,
+      `今日の仕入れです。\n${list}`,
+      `本日の入荷をご紹介します。\n${list}`,
+      `今日はこちらが入りました。\n${list}`,
+    ], 'body', ctx);
+    return { text: t, data: items.join('／') };
+  }
+  if (kind === 'menu') {
+    const rs = recipes().filter(r => r.onMenu && r.name);
+    if (!rs.length) return { text: '', miss: '「レシピ・原価」にメニューを登録すると、ここからおすすめを作れます。' };
+    const r = rs[hashStr(ctx.key + '|pick|' + ctx.seed) % rs.length];
+    ctx.used.menuPick = rs.indexOf(r);
+    const price = num(r.price) ? `${int(r.price)}円` : '';
+    const desc = r.desc ? String(r.desc).trim() : '';
+    const t = snsPick([
+      `本日のおすすめは「${r.name}」。${desc ? desc + ' ' : ''}${price ? price + 'でご用意しております。' : ''}`,
+      `${r.name}${price ? `（${price}）` : ''}。${desc || 'ぜひ一度お試しください。'}`,
+      `今日はぜひ「${r.name}」を。${desc ? desc : ''}${price ? ` ${price}です。` : ''}`,
+      `お品書きから一品ご紹介します。「${r.name}」${price ? ` ${price}` : ''}。${desc || ''}`,
+    ], 'body', ctx);
+    return { text: t.replace(/\s+$/, ''), data: r.name };
+  }
+  if (kind === 'seats') {
+    const cfg = formCfg || {}; const inv = SEAT_INV();
+    const slots = String(cfg.dinner || '').split(',').map(x => x.trim()).filter(Boolean);
+    if (!slots.length || !(inv.t2 + inv.t4 + inv.za)) return { text: '', miss: '設定の「フォームの内容を設定」で、ディナーの時間と席数を入れると空席をご案内できます。' };
+    const open = slots.filter(t => { const m = hhmm2(t); if (m == null) return false; const k = seatPack(d, m); return k.free.t2 + k.free.t4 + k.free.za > 0; });
+    if (!open.length) return { text: '', miss: 'この日はすべての時間が満席です。「満席のお知らせ」として別の文面をお使いください。' };
+    const md = `${Number(d.slice(5, 7))}月${Number(d.slice(8, 10))}日（${DOW[dowN(d)]}）`;
+    const tl = open.length > 3 ? `${open[0]}〜${open[open.length - 1]}` : open.join('・');
+    const t = snsPick([
+      `${md}、${tl}のお席がまだ空いております。`,
+      `${md}のご予約、${tl}でしたらお取りできます。`,
+      `直前のご案内です。${md}は${tl}にお席がございます。`,
+      `${md}、${tl}なら空きがございます。急なご予定にもどうぞ。`,
+    ], 'body', ctx);
+    return { text: t, data: open.join('・') };
+  }
+  if (kind === 'week') {
+    const list = soubaItems(S.week).filter(i => !i.off && i.name).slice(0, 6);
+    if (!list.length) return { text: '', miss: '「相場表」に今週の品目を入れると、ここから作れます。' };
+    const lines = list.map(i => '・' + i.name + (i.origin ? `（${i.origin}）` : '')).join('\n');
+    const t = snsPick([
+      `今週入っている魚をご紹介します。\n${lines}`,
+      `今週の魚です。\n${lines}`,
+      `今週はこのあたりが良いものが入っています。\n${lines}`,
+      `今週のお品はこちら。\n${lines}`,
+    ], 'body', ctx);
+    return { text: t, data: list.map(i => i.name).join('／') };
+  }
+  // info
+  const cfg = formCfg || {};
+  const lunch = String(cfg.lunch || '').split(',').map(x => x.trim()).filter(Boolean);
+  const dinner = String(cfg.dinner || '').split(',').map(x => x.trim()).filter(Boolean);
+  const hours = [lunch.length ? `ランチ ${lunch[0]}〜` : '', dinner.length ? `ディナー ${dinner[0]}〜` : ''].filter(Boolean).join('／');
+  const closed = cfg.closed ? `定休日は${cfg.closed}です。` : '';
+  const t = snsPick([
+    `営業時間のご案内です。${hours ? hours + '。' : ''}${closed}`,
+    `${hours ? hours + 'で営業しております。' : '本日も営業しております。'}${closed}`,
+    `本日の営業のお知らせです。${hours ? hours + '。' : ''}${closed}`,
+  ], 'body', ctx);
+  return { text: t, data: hours || '—' };
+}
+function snsBuild(kind, d) {
+  const s = snsSet(); const ctx = snsCtx(d + '|' + kind);
+  const rec = Store.get(MK('daily', ymOf(d)), d);
+  const greet = snsPick(SNS_GREET, 'greet', ctx).replace('{shop}', s.shop);
+  const weather = rec && rec.weather && s.place ? `${s.place}は${rec.weather}。` : '';
+  const season = snsPick(SNS_SEASON[Number(d.slice(5, 7))] || [], 'season', ctx);
+  const body = snsBody(kind, d, ctx);
+  const close = snsPick(SNS_CLOSE, 'close', ctx);
+  const tags = [s.tag ? '#' + s.tag : '', s.place ? '#' + s.place : '', s.place ? `#${s.place}グルメ` : '']
+    .filter(Boolean).concat(snsPickMany(SNS_HASH, 'hash', 5, ctx));
+  const tip = snsPick(SNS_TIP[kind] || [], 'tip', ctx);
+  if (!body.text) return { text: '', miss: body.miss, used: ctx.used, tip };
+  const head = [greet + weather, season].filter(Boolean).join('');
+  const mk = tg => `${head}\n\n${body.text}\n\n${close}\n\n${tg.join(' ')}`;
+  let tg = tags.slice(), text = mk(tg);
+  while (snsWeight(text) > 280 && tg.length > 3) { tg.pop(); text = mk(tg); } // Xの上限に収まるようハッシュタグを減らす
+  return { text, used: ctx.used, tip, data: body.data };
+}
+// Xの文字数（全角2・半角1で280まで）
+const snsWeight = t => [...String(t)].reduce((a, c) => a + (/[\x00-\x7F]/.test(c) ? 1 : 2), 0);
+const snsKey = () => (S.snsDate || today()) + '|' + (S.snsKind || 'arrival') + '|' + snsSeed;
+function snsCurrent() {
+  const k = snsKey();
+  if (snsDraftKey !== k) { snsDraftKey = k; const b = snsBuild(S.snsKind || 'arrival', S.snsDate || today()); snsDraft = b.text; return b; }
+  const b = snsBuild(S.snsKind || 'arrival', S.snsDate || today());
+  return { ...b, text: snsDraft != null ? snsDraft : b.text };
+}
+P.sns = {
+  month: true,
+  keys: () => [MK('sns', S.month), MK('sns', addMonth(S.month, -1)), MK('daily', S.month), MK('purch', S.month), MK('resv', S.month), 'recipes', 'settings', soubaKey(S.week)],
+  render() {
+    if (typeof SB !== 'undefined' && !formCfg) loadFormCfg().then(() => scheduleRender());
+    const d = S.snsDate || today(); const kind = S.snsKind || 'arrival';
+    const cur = snsCurrent();
+    const w = snsWeight(cur.text || '');
+    const hist = L('sns', S.month).sort((a, b) => String(b.at || '').localeCompare(String(a.at || '')));
+    return `<div class="toolbar"><label class="field-inline"><span class="muted small">日付</span><input type="date" id="snsDate" value="${esc(d)}" data-chg="snsDate"></label>
+      <span class="sp"></span><span class="muted small">${esc((SNS_KINDS.find(k => k[0] === kind) || [])[2] || '')}</span></div>
+    <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:14px">${SNS_KINDS.map(([k, label]) => `<button class="btn${k === kind ? ' primary' : ''}" data-act="snsKind" data-k="${esc(k)}">${esc(label)}</button>`).join('')}</div>
+    ${cur.text ? `<div class="card">
+      <h3>投稿文<span class="sp"></span><span class="pill ${w > 280 ? 'bad' : w > 240 ? 'warn' : 'ok'}">X ${Math.ceil(w / 2)} / 140字</span></h3>
+      <textarea id="snsText" data-inp="snsEdit" style="width:100%;min-height:230px;font:inherit;font-size:15px;line-height:1.8;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink)">${esc(cur.text)}</textarea>
+      <div class="row" style="margin-top:10px"><button class="btn primary" data-act="snsCopy">文章をコピー</button>
+        <button class="btn" data-act="snsReroll">言い回しを変える</button>
+        <button class="btn" data-act="snsX">Xに下書きを送る</button>
+        <button class="btn" data-act="snsIg">Instagramを開く</button>
+        <span class="sp"></span><button class="btn" data-act="snsSave">投稿済みとして残す</button></div>
+      ${cur.data ? `<p class="hint">使ったデータ：${esc(cur.data)}</p>` : ''}
+      ${cur.tip ? `<div class="note-box" style="margin:12px 0 0"><b>写真のヒント</b><br>${esc(cur.tip)}</div>` : ''}
+    </div>` : `<div class="card">${emptyBox('この種類の文はまだ作れません', cur.miss || '')}
+      <p class="hint">${esc(cur.miss || '')}</p></div>`}
+    <p class="hint">型（あいさつ → 本文 → 締め → ハッシュタグ）は変えずに、言い回しとハッシュタグだけ毎回変わります。直近8回に使った言い回しは選ばれません。文章はそのまま書き換えられます。</p>
+    <section class="sec"><h3>${ymLabel(S.month)}の投稿${hist.length ? `<span class="pill">${hist.length}件</span>` : ''}</h3>
+      ${hist.length ? `<div class="tw"><table class="tbl"><thead><tr><th>日付</th><th>種類</th><th>投稿文</th><th></th></tr></thead><tbody>${hist.map(r => `<tr><td>${dLabel(r.date)}</td><td>${esc((SNS_KINDS.find(k => k[0] === r.kind) || [, r.kind])[1])}</td><td class="wrap small" style="white-space:pre-wrap">${esc(String(r.text || '').slice(0, 120))}${String(r.text || '').length > 120 ? '…' : ''}</td><td><button class="btn sm" data-act="snsCopyOne" data-id="${esc(r.id)}">コピー</button><button class="btn sm danger" data-act="snsDel" data-id="${esc(r.id)}">削除</button></td></tr>`).join('')}</tbody></table></div>`
+        : emptyBox('まだ投稿の記録はありません', '「投稿済みとして残す」を押すと、ここに残って同じ言い回しが続かなくなります')}
+    </section>`;
+  }
+};
+CHG.snsDate = el => { if (el.value) { S.snsDate = el.value; S.month = ymOf(el.value); S.cache = {}; snsDraft = null; snsDraftKey = ''; pruneSubs(); render(); } };
+CHG.snsEdit = el => { snsDraft = el.value; const p = $('.card h3 .pill'); if (p) { const w = snsWeight(el.value); p.textContent = `X ${Math.ceil(w / 2)} / 140字`; p.className = 'pill ' + (w > 280 ? 'bad' : w > 240 ? 'warn' : 'ok'); } };
+A.snsKind = el => { S.snsKind = el.dataset.k; snsDraft = null; snsDraftKey = ''; render(); };
+A.snsReroll = () => { snsSeed++; snsDraft = null; snsDraftKey = ''; render(); toast('言い回しを変えました'); };
+async function snsClip(t) { try { await navigator.clipboard.writeText(t); toast('コピーしました。InstagramやXに貼り付けてください'); } catch (e) { toast('コピーできませんでした。文章を長押しして選択してください'); } }
+A.snsCopy = () => snsClip(snsCurrent().text);
+A.snsCopyOne = el => { const r = Store.get(MK('sns', S.month), el.dataset.id); if (r) snsClip(r.text); };
+A.snsX = () => { const t = snsCurrent().text; snsClip(t); const a = document.createElement('a'); a.href = 'https://x.com/intent/post?text=' + encodeURIComponent(t); a.target = '_blank'; a.rel = 'noopener'; a.style.display = 'none'; document.body.appendChild(a); a.click(); setTimeout(() => a.remove(), 500); };
+A.snsIg = () => { snsClip(snsCurrent().text); const a = document.createElement('a'); a.href = 'https://www.instagram.com/'; a.target = '_blank'; a.rel = 'noopener'; a.style.display = 'none'; document.body.appendChild(a); a.click(); setTimeout(() => a.remove(), 500); };
+A.snsSave = async () => {
+  const cur = snsCurrent(); if (!cur.text) return;
+  const d = S.snsDate || today();
+  await Store.put(MK('sns', ymOf(d)), uid(), { date: d, kind: S.snsKind || 'arrival', text: cur.text, used: cur.used || {}, at: new Date().toISOString() });
+  toast('投稿として残しました');
+};
+A.snsDel = async el => { if (!confirmDel()) return; await Store.put(MK('sns', S.month), el.dataset.id, null); toast('削除しました'); };
 /* ---------- タイムカード ---------- */
 function openShiftOf(sid) { // 未退勤の記録（今月・前月）
   for (const ym of [curYM(), addMonth(curYM(), -1)]) {
@@ -2490,6 +2728,8 @@ const F_SET = [
   { k: 'coinStart', label: '売上小銭の開始残高', type: 'money', hint: '売上小銭出納帳のいちばん最初の繰越額' }, { k: 'coinStartMonth', label: '売上小銭の開始月', type: 'month' }, { k: 'invStart', label: '期首商品棚卸高（開業年）', type: 'money' },
   { k: 'weekLimit', label: '週の法定労働時間', type: 'select', opts: [{ v: 40, l: '40時間' }, { v: 44, l: '44時間（常時10人未満の飲食店＝特例措置対象事業場）' }] },
   { k: 'reportMail', label: '日報の送信先メール', type: 'email', hint: '「保存して送信」で、この宛先のメールが作成されます' },
+  { k: 'snsPlace', label: 'SNSに出す地名', ph: '糸魚川', hint: '「糸魚川は晴れ。」「#糸魚川グルメ」のように使います' },
+  { k: 'snsTag', label: 'SNSのハッシュタグ用の店名', ph: 'のどぐろ家姫川', hint: '空欄なら店名をそのまま使います（空白は詰めます）' },
   { k: 'payday', label: '給料日（翌月の日付）', type: 'num' }, { k: 'monthlyHours', label: '月給者の月所定労働時間（標準）', type: 'num' },
 ];
 P.settings = {
