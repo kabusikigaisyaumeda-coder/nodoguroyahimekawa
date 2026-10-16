@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-0yQSSHBXHOvjbjfDfkBVMAejDrrCS1Th6bHSBQ5tClU='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data: blob: https://tzmptqweehooidklvhpv.supabase.co; object-src https://tzmptqweehooidklvhpv.supabase.co; base-uri 'none'; form-action 'none'; manifest-src 'self'"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="のどぐろ家姫川"><meta name="theme-color" content="#23467A"></head><body>
+<html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-eL7F/Bz+yrnsjKMqDKzR4a1xm4Pku3PfRJa9a5BIu0M='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data: blob: https://tzmptqweehooidklvhpv.supabase.co; object-src https://tzmptqweehooidklvhpv.supabase.co; base-uri 'none'; form-action 'none'; manifest-src 'self'"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="のどぐろ家姫川"><meta name="theme-color" content="#23467A"></head><body>
 <title>のどぐろ家姫川</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -119,6 +119,32 @@ table.tbl{border-collapse:collapse;width:100%;font-size:14px}
 .note-box.ok{border-color:var(--ok);background:var(--ok-soft)}
 .tbl tr.grp td{background:var(--surface2);font-weight:700}
 .tbl tr.ex td{background:var(--ok-soft)}
+/* 予約カレンダー */
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:16px}
+.cal .hd{background:var(--surface2);text-align:center;font-size:12px;font-weight:700;padding:7px 0}
+.cal .hd.sun{color:var(--shu)}.cal .hd.sat{color:var(--accent)}
+.cal .d{background:var(--surface);min-height:96px;padding:5px;cursor:pointer;display:flex;flex-direction:column;gap:3px;text-align:left;border:0;font:inherit;color:inherit}
+.cal .d.off{background:var(--surface2);cursor:default}
+.cal .d.today{background:var(--warn-soft)}
+.cal .d.sel{box-shadow:inset 0 0 0 2px var(--accent)}
+.cal .d .n{font-weight:700;font-size:13px;display:flex;align-items:center;gap:5px}
+.cal .d.sun .n{color:var(--shu)}.cal .d.sat .n{color:var(--accent)}
+.cal .d .n .tot{font-weight:400;font-size:11px;color:var(--muted);margin-left:auto}
+.cal .ev{font-size:11px;line-height:1.4;background:var(--accent-soft);border-radius:4px;padding:1px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal .ev.za{background:var(--ok-soft)}
+.cal .ev.x{background:var(--surface2);color:var(--muted);text-decoration:line-through}
+.cal .ev.web{background:var(--warn-soft);font-weight:700}
+.cal .more{font-size:10.5px;color:var(--muted)}
+.cal .d .fl{font-size:10px;color:var(--bad);font-weight:700;margin-top:auto}
+@media(max-width:640px){
+.cal .d{min-height:58px;padding:3px;gap:2px}
+.cal .d .n{font-size:11.5px;gap:3px;flex-wrap:wrap}
+.cal .d .n .pill{display:none}
+.cal .d .n .tot{margin-left:0;width:100%;font-size:9.5px;line-height:1.2}
+.cal .ev{font-size:0;padding:0;height:4px;border-radius:2px;pointer-events:none}
+.cal .ev.x{opacity:.5}
+.cal .more{display:none}
+.cal .d .fl{font-size:9px}}
 .note-box.bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .note-box.bar>.sp{flex:1 1 240px}
 .note-box.bar .small{color:var(--muted)}
@@ -388,6 +414,7 @@ const CHG = {}; // 入力変更
 const S = {
   page: lsGet('rk.page', 'home'), month: curYM(), day: today(), year: new Date().getFullYear(), lastToday: today(), week: today(),
   me: lsGet('rk.me', ''), assets: null, downloads: null, cache: {},
+  rday: '', resvList: lsGet('rk.resvList', false),
 };
 const SET = () => ({ ...DEF_SET, ...(Store.get('settings', 'main') || {}) });
 const staffAll = () => Store.list('staff').sort((a, b) => (a.order || 0) - (b.order || 0) || String(a.kana || a.name).localeCompare(String(b.kana || b.name), 'ja'));
@@ -512,7 +539,7 @@ function confirmDel(extra) { // 2回押しで削除（ダイアログを使わ�
 /* ---- ファイル保存（CSV/HTML） ---- */
 const csvCell = v => { let s = String(v ?? ''); if (typeof v !== 'number' && /^[=+\-@\t\r]/.test(s)) s = "'" + s; /* 表計算ソフトの数式実行を防ぐ */ return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
 const toCSV = rows => '﻿' + rows.map(r => r.map(csvCell).join(',')).join('\r\n');
-const FN_MAP = [['出勤簿_全員', 'attendance-all'], ['売上小銭出納帳', 'coin-cash-book'], ['売上日計表', 'daily-sales'], ['ウメダ在庫一覧', 'umeda-stock-list'], ['相場表', 'market-prices'], ['衛生管理記録', 'hygiene-log'], ['小口現金出納帳', 'petty-cash'], ['固定資産台帳', 'fixed-assets'], ['労働者名簿', 'staff-register'], ['賃金台帳', 'wage-ledger'], ['アレルゲン表', 'allergens'], ['給与明細', 'payslip'], ['月別集計', 'monthly-summary'], ['バックアップ', '_backup'], ['のどぐろ家姫川', 'nodoguro-himekawa'], ['シフト表', 'shift'], ['仕訳帳', 'journal'], ['仕入帳', 'purchases'], ['経費帳', 'expenses'], ['出勤簿', 'attendance'], ['棚卸表', 'inventory'], ['原価表', 'recipe-costs'], ['メニュー', 'menu'], ['日報', 'daily-report']];
+const FN_MAP = [['予約表', 'reservations'], ['出勤簿_全員', 'attendance-all'], ['売上小銭出納帳', 'coin-cash-book'], ['売上日計表', 'daily-sales'], ['ウメダ在庫一覧', 'umeda-stock-list'], ['相場表', 'market-prices'], ['衛生管理記録', 'hygiene-log'], ['小口現金出納帳', 'petty-cash'], ['固定資産台帳', 'fixed-assets'], ['労働者名簿', 'staff-register'], ['賃金台帳', 'wage-ledger'], ['アレルゲン表', 'allergens'], ['給与明細', 'payslip'], ['月別集計', 'monthly-summary'], ['バックアップ', '_backup'], ['のどぐろ家姫川', 'nodoguro-himekawa'], ['シフト表', 'shift'], ['仕訳帳', 'journal'], ['仕入帳', 'purchases'], ['経費帳', 'expenses'], ['出勤簿', 'attendance'], ['棚卸表', 'inventory'], ['原価表', 'recipe-costs'], ['メニュー', 'menu'], ['日報', 'daily-report']];
 function asciiName(fn) { // 一部のブラウザは日本語のファイル名を無視するため英数字に置き換える
   let s = fn; for (const [j, e] of FN_MAP) s = s.split(j).join(e);
   const m = s.match(/\.[a-z0-9]+$/i); const ext = m ? m[0] : ''; let base = ext ? s.slice(0, -ext.length) : s;
@@ -648,7 +675,7 @@ function webrCard(r) {
   if (v.allergy) warn.push('アレルギーの記載あり');
   return `<div class="card" style="margin-bottom:12px;border-left:3px solid var(--accent)">
     <div class="row" style="align-items:flex-start"><div class="sp">
-      <b style="font-size:16px">${esc(dLabel(d.date))}　${esc(v.time)}　${esc(v.name)} 様　${int(v.people)}名</b>
+      <b style="font-size:16px">${esc(dLabel(d.date))}　${esc(v.time)}　${esc(sama(v.name))}　${int(v.people)}名</b>
       ${num(d.kids) ? `<span class="pill">お子様${int(d.kids)}名</span>` : ''}
       ${warn.map(w => `<span class="pill warn">${esc(w)}</span>`).join('')}
       <div class="small muted">受信 ${esc(new Date(r.created_at).toLocaleString('ja-JP'))}</div>
@@ -1016,7 +1043,7 @@ P.home = {
     </div>
     <div class="grid g2">
       <section class="sec"><h3>今日の予約<span class="sp"></span><button class="btn sm" data-act="resvAdd">＋ 予約</button></h3>
-        ${resv.length ? `<div class="tw"><table class="tbl"><thead><tr><th>時間</th><th>お名前</th><th class="n">人数</th><th>内容</th><th>状態</th></tr></thead><tbody>${resv.map(r => `<tr class="click" data-act="resvEdit" data-id="${esc(r.id)}"><td>${esc(r.time)}</td><td>${esc(r.name)}</td><td class="n">${int(r.people)}</td><td class="wrap">${esc([r.course, r.allergy ? 'アレルギー:' + r.allergy : ''].filter(Boolean).join(' / '))}</td><td>${resvPill(r.status)}</td></tr>`).join('')}</tbody></table></div>` : emptyBox('今日の予約はありません', '')}
+        ${resv.length ? `<div class="tw"><table class="tbl"><thead><tr><th>時間</th><th>お名前</th><th class="n">人数</th><th>内容</th><th>状態</th></tr></thead><tbody>${resv.map(r => `<tr class="click" data-act="resvEdit" data-id="${esc(r.id)}"><td>${esc(r.time)}</td><td>${esc(sama(r.name))}</td><td class="n">${int(r.people)}</td><td class="wrap">${esc([r.course, r.allergy ? 'アレルギー:' + r.allergy : ''].filter(Boolean).join(' / '))}</td><td>${resvPill(r.status)}</td></tr>`).join('')}</tbody></table></div>` : emptyBox('今日の予約はありません', '')}
       </section>
       <section class="sec"><h3>お知らせ</h3>
         <div class="alerts">${closeTodo}${alerts.length ? alerts.map(([c, t, go, b]) => `<div class="alert"><span class="pill ${c}">要確認</span><span class="sp">${esc(t)}</span><button class="btn sm" data-go="${esc(go)}">${esc(b)}</button></div>`).join('') : (closeTodo ? '' : '<div class="alert"><span class="pill ok">OK</span><span class="sp">確認が必要なことはありません</span></div>')}</div>
@@ -1362,6 +1389,8 @@ A.prepCopy = async () => {
 
 /* ---------- 予約台帳 ---------- */
 const RESV_ST = ['予約', '来店', 'キャンセル', '無断キャンセル'];
+// お客様のお名前に「様」を付ける（すでに敬称が付いていればそのまま）
+const sama = v => { const t = String(v || '').trim(); return t ? (/(様|さま|サマ|殿|御中|ちゃん|君|くん)$/.test(t) ? t : t + ' 様') : ''; };
 const resvPill = s => `<span class="pill ${s === '来店' ? 'ok' : s === 'キャンセル' ? '' : s === '無断キャンセル' ? 'bad' : 'acc'}">${esc(s || '予約')}</span>`;
 const F_RESV = [
   { k: 'date', label: '日付', type: 'date', req: true }, { k: 'time', label: '時間', type: 'time' },
@@ -1381,7 +1410,10 @@ const resvCrud = crud({
       toast(`${dLabel(v.date)} ${v.time} は席数を超えています（${k.text}）`);
   },
 });
-A.resvAdd = () => resvCrud.add({ date: S.page === 'resv' && S.month !== curYM() ? S.month + '-01' : today(), status: '予約' });
+A.resvAdd = el => {
+  const d = (el && el.dataset && el.dataset.d) || (S.page === 'resv' ? (S.rday && ymOf(S.rday) === S.month ? S.rday : (S.month === curYM() ? today() : S.month + '-01')) : today());
+  resvCrud.add({ date: d, status: '予約' });
+};
 A.resvEdit = el => { const ym = S.page === 'resv' ? S.month : curYM(); resvCrud.edit(Store.get(MK('resv', ym), el.dataset.id)); };
 P.resv = {
   month: true,
@@ -1390,16 +1422,99 @@ P.resv = {
     if (typeof SB !== 'undefined' && !formCfg) loadFormCfg().then(() => scheduleRender());
     const list = L('resv', S.month).sort(byDate); const td = today();
     const by = groupBy(list, r => r.date);
-    const active = list.filter(r => r.status !== 'キャンセル' && r.status !== '無断キャンセル');
-    return `<div class="stats">${stat('予約件数', active.length + '件', sum(active, r => r.people) + '名')}${stat('来店済み', list.filter(r => r.status === '来店').length + '件')}${stat('キャンセル', list.filter(r => r.status === 'キャンセル').length + '件')}${stat('無断キャンセル', list.filter(r => r.status === '無断キャンセル').length + '件')}</div>
-    <div class="toolbar"><button class="btn primary" data-act="resvAdd">＋ 予約を追加</button><span class="sp"></span><button class="btn" data-act="formCopy">予約フォームのURLをコピー</button><button class="btn" data-act="formOpen">フォームを開く</button></div>
-    ${webrSection()}
-    ${list.length ? Object.keys(by).sort().map(d => `<section class="sec"><h3>${dLabel(d)}${d === td ? ' <span class="pill acc">今日</span>' : ''}<span class="muted small" style="font-family:var(--f-body);font-weight:400">${by[d].filter(r => r.status !== 'キャンセル').length}件・${sum(by[d].filter(r => r.status !== 'キャンセル'), r => r.people)}名</span></h3>
-      ${seatLine(d)}
-      <div class="tw"><table class="tbl"><thead><tr><th>時間</th><th>お名前</th><th class="n">人数</th><th>席</th><th>コース・内容</th><th>アレルギー</th><th>電話</th><th>状態</th></tr></thead><tbody>${by[d].map(r => `<tr class="click" data-act="resvEdit" data-id="${esc(r.id)}"><td>${esc(r.time || '')}</td><td>${esc(r.name)}</td><td class="n">${int(r.people)}</td><td>${esc(r.seat || '')}</td><td class="wrap">${esc(r.course || '')}</td><td>${r.allergy ? `<span class="pill bad">${esc(r.allergy)}</span>` : ''}</td><td>${esc(r.tel || '')}</td><td>${resvPill(r.status)}</td></tr>`).join('')}</tbody></table></div></section>`).join('')
-        : emptyBox(ymLabel(S.month) + 'の予約はありません', '')}`;
+    const live = r => r.status !== 'キャンセル' && r.status !== '無断キャンセル';
+    const active = list.filter(live);
+    const days = monthDays(S.month);
+    const sel = S.rday && ymOf(S.rday) === S.month ? S.rday : (by[td] ? td : (ymOf(td) === S.month ? td : days[0]));
+    const stats = `<div class="stats">${stat('予約件数', active.length + '件', sum(active, r => r.people) + '名')}${stat('来店済み', list.filter(r => r.status === '来店').length + '件')}${stat('キャンセル', list.filter(r => r.status === 'キャンセル').length + '件')}${stat('無断キャンセル', list.filter(r => r.status === '無断キャンセル').length + '件')}</div>`;
+    const bar = `<div class="toolbar"><button class="btn primary" data-act="resvAdd">＋ 予約を追加</button>
+      <button class="btn" data-act="resvView">${S.resvList ? 'カレンダーで見る' : '一覧で見る'}</button>
+      <button class="btn" data-act="resvPrintMonth">この月をA4印刷（1日1枚）</button>
+      <span class="sp"></span><button class="btn" data-act="formCopy">予約フォームのURLをコピー</button><button class="btn" data-act="formOpen">フォームを開く</button></div>
+      ${webrSection()}`;
+    if (S.resvList) {
+      return stats + bar + (list.length ? Object.keys(by).sort().map(d => dayBlock(d, by[d], td)).join('')
+        : emptyBox(ymLabel(S.month) + 'の予約はありません', ''));
+    }
+    // ---- カレンダー ----
+    const webByDay = typeof WEBR !== 'undefined' ? groupBy(WEBR.list.filter(w => ymOf((w.data || {}).date || '') === S.month), w => w.data.date) : {};
+    const head = DOW.map((w, i2) => `<div class="hd ${i2 === 0 ? 'sun' : i2 === 6 ? 'sat' : ''}">${w}</div>`).join('');
+    const blanks = '<div class="d off"></div>'.repeat(dowN(days[0]));
+    const cells = days.map(d => {
+      const w = dowN(d); // 生きている予約を先に、キャンセルは最後に
+      const rs = (by[d] || []).slice().sort((a, b) => (live(a) ? 0 : 1) - (live(b) ? 0 : 1) || String(a.time || '').localeCompare(String(b.time || '')));
+      const ws = webByDay[d] || [];
+      const lv = rs.filter(live);
+      const evs = ws.map(x => `<div class="ev web">Web ${esc(String((x.data || {}).time || '').replace(/^\s*(ランチ|ディナー)\s*/, ''))} ${esc(sama((x.data || {}).name))}</div>`)
+        .concat(rs.map(r => `<div class="ev ${live(r) ? (/座敷/.test(r.seat || '') ? 'za' : '') : 'x'}" data-act="resvEdit" data-id="${esc(r.id)}">${esc(r.time || '')} ${esc(sama(r.name))}${r.people ? ' ' + int(r.people) : ''}</div>`));
+      const show = evs.slice(0, 3);
+      const full = fullMark(d, lv);
+      return `<button type="button" class="d ${w === 0 ? 'sun' : w === 6 ? 'sat' : ''}${d === td ? ' today' : ''}${d === sel ? ' sel' : ''}" data-act="resvDay" data-d="${esc(d)}">
+        <span class="n">${Number(d.slice(8))}${d === td ? '<span class="pill acc">今日</span>' : ''}${lv.length || ws.length ? `<span class="tot">${ws.length ? 'Web' + ws.length + ' ' : ''}${lv.length ? lv.length + '件 ' + int(sum(lv, r => r.people)) + '名' : ''}</span>` : ''}</span>
+        ${show.join('')}${evs.length > 3 ? `<div class="more">ほか${evs.length - 3}件</div>` : ''}${full}</button>`;
+    }).join('');
+    return stats + bar + `<div class="cal">${head}${blanks}${cells}</div>` +
+      (by[sel] && by[sel].length ? dayBlock(sel, by[sel], td) :
+        `<section class="sec"><h3>${dLabel(sel)}<span class="sp"></span><button class="btn sm" data-act="resvPrint" data-d="${esc(sel)}">この日をA4印刷</button></h3>${seatLine(sel)}${emptyBox('この日の予約はありません', '')}
+          <div class="row" style="margin-top:10px"><button class="btn primary" data-act="resvAdd">＋ ${esc(dLabel(sel))}に予約を追加</button></div></section>`);
   }
 };
+// 満席の印（空き卓が0の時間帯があれば出す）
+function fullMark(d, lv) {
+  if (typeof SEAT_INV !== 'function') return '';
+  const inv = SEAT_INV(); if (!(inv.t2 + inv.t4 + inv.za) || !lv.length) return '';
+  const times = [...new Set(lv.map(r => r.time).filter(Boolean))];
+  let over = false, fullT = 0;
+  for (const t of times) { const m = hhmm2(t); if (m == null) continue; const k = seatPack(d, m); if (k.over) over = true; if (!(k.free.t2 + k.free.t4 + k.free.za)) fullT++; }
+  return over ? '<span class="fl">席数超過</span>' : fullT ? `<span class="fl">満席${fullT > 1 ? ' ' + fullT + '枠' : ''}</span>` : '';
+}
+// 1日ぶんの明細
+function dayBlock(d, rs, td) {
+  const live = r => r.status !== 'キャンセル' && r.status !== '無断キャンセル';
+  const lv = rs.filter(live);
+  return `<section class="sec"><h3>${dLabel(d)}${d === td ? ' <span class="pill acc">今日</span>' : ''}<span class="muted small" style="font-family:var(--f-body);font-weight:400">${lv.length}件・${sum(lv, r => r.people)}名</span><span class="sp"></span><button class="btn sm" data-act="resvPrint" data-d="${esc(d)}">この日をA4印刷</button><button class="btn sm" data-act="resvAdd" data-d="${esc(d)}">＋ この日に追加</button></h3>
+    ${seatLine(d)}
+    <div class="tw"><table class="tbl"><thead><tr><th>時間</th><th>お名前</th><th class="n">人数</th><th>席</th><th>コース・内容</th><th>アレルギー</th><th>電話</th><th>状態</th></tr></thead><tbody>${rs.slice().sort((a, b) => String(a.time || '').localeCompare(String(b.time || ''))).map(r => `<tr class="click" data-act="resvEdit" data-id="${esc(r.id)}"><td>${esc(r.time || '')}</td><td>${esc(sama(r.name))}</td><td class="n">${int(r.people)}</td><td>${esc(r.seat || '')}</td><td class="wrap">${esc(r.course || '')}</td><td>${r.allergy ? `<span class="pill bad">${esc(r.allergy)}</span>` : ''}</td><td>${esc(r.tel || '')}</td><td>${resvPill(r.status)}</td></tr>`).join('')}</tbody></table></div></section>`;
+}
+// 1日ぶんの予約表（A4・厨房やホールに貼る用）
+function resvSheet(d) {
+  const set = SET();
+  const live = r => r.status !== 'キャンセル' && r.status !== '無断キャンセル';
+  const rs = L('resv', ymOf(d)).filter(r => r.date === d)
+    .sort((a, b) => (live(a) ? 0 : 1) - (live(b) ? 0 : 1) || String(a.time || '').localeCompare(String(b.time || '')));
+  const lv = rs.filter(live);
+  const inv = SEAT_INV();
+  const times = [...new Set(lv.map(r => r.time).filter(Boolean))].sort();
+  const freeTxt = (inv.t2 + inv.t4 + inv.za) ? times.map(t => { const m = hhmm2(t); if (m == null) return ''; return t + ' ' + seatPack(d, m).text; }).filter(Boolean).join('　／　') : '';
+  const rows = rs.map(r => `<tr${live(r) ? '' : ' class="x"'}><td>${esc(r.time || '')}</td><td class="nm">${esc(sama(r.name))}</td><td class="n">${int(r.people)}</td><td>${esc(r.seat || '')}</td><td class="wrap">${esc(r.course || '')}</td><td class="al">${esc(r.allergy || '')}</td><td>${esc(r.tel || '')}</td><td>${esc(r.status || '予約')}${r.via ? '<br><span class="sm">' + esc(r.via) + '</span>' : ''}</td><td class="wrap">${esc(r.note || '')}</td><td></td></tr>`).join('');
+  return `<h1>予約表　${esc(dLong(d))}</h1>
+  <div class="meta">${esc(set.shop || set.trade || '')}　<b>${lv.length}組・${int(sum(lv, r => r.people))}名</b>${freeTxt ? '<br>空き卓　' + esc(freeTxt) : ''}</div>
+  <table><thead><tr><th style="width:7%">時間</th><th style="width:13%">お名前</th><th class="n" style="width:5%">人数</th><th style="width:11%">席</th><th style="width:14%">コース・内容</th><th style="width:13%">アレルギー</th><th style="width:10%">電話</th><th style="width:7%">状態</th><th style="width:13%">メモ</th><th style="width:6%">来店</th></tr></thead>
+  <tbody>${rows || '<tr><td colspan="10" style="color:#999">この日の予約はありません</td></tr>'}</tbody></table>
+  <p class="ft">色の付いた欄はアレルギーの申告があります。提供前に必ず確認してください。「来店」欄はご来店時にチェックしてお使いください。</p>`;
+}
+const RESV_CSS = `.meta{font-size:10pt;margin-bottom:3mm;line-height:1.6}
+table{font-size:9pt}th,td{padding:2.4px 4px;vertical-align:top}
+td.n,th.n{text-align:right}
+td.nm{font-weight:700}
+td:first-child{white-space:nowrap}
+td.al:not(:empty){background:#f7ddd8;font-weight:700;color:#8d2b22}
+tr.x td{color:#999;text-decoration:line-through}
+.sm{font-size:7.5pt;color:#666}
+.ft{font-size:8.5pt;margin-top:3mm}
+.pg{break-after:page}.pg:last-child{break-after:auto}`;
+A.resvPrint = el => {
+  const d = (el && el.dataset && el.dataset.d) || (S.rday && ymOf(S.rday) === S.month ? S.rday : today());
+  saveFile(`予約表_${d}.html`, printDoc(`予約表 ${d}`, `<section class="pg">${resvSheet(d)}</section>`, RESV_CSS));
+};
+A.resvPrintMonth = () => {
+  const ds = [...new Set(L('resv', S.month).filter(r => r.status !== 'キャンセル' && r.status !== '無断キャンセル').map(r => r.date))].sort();
+  if (!ds.length) { toast(`${ymLabel(S.month)}の予約がありません`); return; }
+  saveFile(`予約表_${S.month}.html`, printDoc(`予約表 ${ymLabel(S.month)}`, ds.map(d => `<section class="pg">${resvSheet(d)}</section>`).join(''), RESV_CSS));
+  toast(`${ds.length}日分（1日1枚）を保存しました`);
+};
+A.resvDay = el => { S.rday = el.dataset.d; render(); };
+A.resvView = () => { S.resvList = !S.resvList; lsSet('rk.resvList', S.resvList); render(); };
 /* ---------- タイムカード ---------- */
 function openShiftOf(sid) { // 未退勤の記録（今月・前月）
   for (const ym of [curYM(), addMonth(curYM(), -1)]) {
