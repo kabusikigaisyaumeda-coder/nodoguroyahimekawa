@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-/+3T7+12OgdBPLfcELGz4JErhCJYk7FE16xNo3nKlKA='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data: blob: https://tzmptqweehooidklvhpv.supabase.co; object-src https://tzmptqweehooidklvhpv.supabase.co; base-uri 'none'; form-action 'none'; manifest-src 'self'"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="のどぐろ家姫川"><meta name="theme-color" content="#23467A"></head><body>
+<html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-DqtogteweVLAD7dXb07yC0fgjjv4aLPITQ31JKzNDgI='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data: blob: https://tzmptqweehooidklvhpv.supabase.co; object-src https://tzmptqweehooidklvhpv.supabase.co; base-uri 'none'; form-action 'none'; manifest-src 'self'"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="のどぐろ家姫川"><meta name="theme-color" content="#23467A"></head><body>
 <title>のどぐろ家姫川</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -320,7 +320,7 @@ const DENOMS = [10000, 5000, 1000, 500, 100, 50, 10, 5, 1];
 const WEATHER = ['晴れ', '曇り', '雨', '雪', '晴れ時々曇り', '曇り時々雨'];
 // 定額法の償却率（平成19年4月1日以後取得）
 const SL_RATE = { 2: .5, 3: .334, 4: .25, 5: .2, 6: .167, 7: .143, 8: .125, 9: .112, 10: .1, 11: .091, 12: .084, 13: .077, 14: .072, 15: .067, 16: .063, 17: .059, 18: .056, 19: .053, 20: .05, 22: .046, 24: .042, 25: .04, 30: .034, 34: .03, 39: .026, 47: .022 };
-const DEF_SET = { shop: '', trade: '', owner: '', addr: '', tel: '', invoiceNo: '', openDate: '', float: 30000, cashStart: 0, cashStartMonth: '', coinStart: 0, coinStartMonth: '', snsPlace: '糸魚川', snsTag: '', invStart: 0, weekLimit: 40, payday: 25, monthlyHours: 173, reportMail: 'kabusikigaisya.umeda@gmail.com', reportCc: '', nightPay: true };
+const DEF_SET = { shop: '', trade: '', owner: '', addr: '', tel: '', invoiceNo: '', openDate: '', float: 30000, cashStart: 0, cashStartMonth: '', coinStart: 0, coinStartMonth: '', coinAuto: '全額', bank: '', snsPlace: '糸魚川', snsTag: '', invStart: 0, weekLimit: 40, payday: 25, monthlyHours: 173, reportMail: 'kabusikigaisya.umeda@gmail.com', reportCc: '', nightPay: true };
 const useNight = () => SET().nightPay !== false; // 深夜割増（22時〜5時）を使うか
 // 「,」「;」改行・空白で区切られたメールアドレスを配列に
 const mailList = v => String(v || '').split(/[,;、\s]+/).map(x => x.trim()).filter(x => /^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(x));
@@ -922,17 +922,36 @@ function cashLines(ym, src) {
   for (const p of src.purch.filter(p => p.pay === '小口現金')) lines.push({ date: p.date, desc: supName(p.supplier) + (p.desc ? ' ' + p.desc : ''), account: '仕入高', inAmt: 0, outAmt: num(p.a8) + num(p.a10), src: 'purch', rec: p });
   return lines.sort(byDate);
 }
+// 売上小銭出納帳の明細（その月）＝ 手入力ぶん ＋ 日報の現金売上から自動
+const coinIn = r => r.kind === '銀行入金' || r.kind === '両替' ? 0 : num(r.amount);
+const coinOut = r => r.kind === '銀行入金' || r.kind === '両替' ? num(r.amount) : 0;
+// 日報の現金売上から、売上小銭として手元に入れる額
+const coinAutoAmt = cash => {
+  const mode = SET().coinAuto || '全額'; const c = num(cash);
+  if (c <= 0 || mode === 'なし') return 0;
+  return mode === '端数' ? c % 1000 : c;
+};
+function coinLines(ym, src) {
+  src = src || { coin: L('coin', ym), daily: L('daily', ym) };
+  const lines = src.coin.map(r => ({ date: r.date, desc: coinDesc(r), payee: r.payee || '', inAmt: coinIn(r), outAmt: coinOut(r), src: 'coin', rec: r }));
+  const hand = new Set(src.coin.filter(r => r.kind !== '両替').map(r => r.date)); // 同じ日に手入力があればそちらを優先
+  for (const d of src.daily) {
+    if (hand.has(d.date)) continue;
+    const a = coinAutoAmt(d.cash); if (!a) continue;
+    lines.push({ date: d.date, desc: `売上小銭　売上（${int(a)}）`, payee: SET().shop || '', inAmt: a, outAmt: 0, src: 'daily', rec: d });
+  }
+  return lines.sort(byDate);
+}
 // 売上小銭の前月繰越（開始月から積み上げ）
-const coinIn = r => r.kind === '両替' ? 0 : num(r.amount);
-const coinOut = r => r.kind === '両替' ? num(r.amount) : 0;
 async function coinCarry(ym) {
   const set = SET();
   const start = set.coinStartMonth || ym;
   if (ym <= start) return num(set.coinStart);
   let bal = num(set.coinStart);
   for (let m = start; m < ym; m = addMonth(m, 1)) {
-    const list = await Store.fetch(MK('coin', m));
-    bal += sum(list, coinIn) - sum(list, coinOut);
+    const [coin, daily] = await Promise.all([Store.fetch(MK('coin', m)), Store.fetch(MK('daily', m))]);
+    const ls = coinLines(m, { coin, daily });
+    bal += sum(ls, l => l.inAmt) - sum(ls, l => l.outAmt);
   }
   return bal;
 }
@@ -1082,7 +1101,7 @@ const F_DAILY = [
   { k: 'date', label: '日付', type: 'date', req: true },
   { k: 'weather', label: '天気', type: 'select', opts: WEATHER, blank: '—' },
   { k: 'cashLunch', label: '現金売上（ランチ）', type: 'money' },
-  { k: 'cashDinner', label: '現金売上（ディナー）', type: 'money' },
+  { k: 'cashDinner', label: '現金売上（ディナー）', type: 'money', hint: 'ランチ＋ディナーの現金売上は「売上小銭出納帳」に自動で記帳されます（設定で変更できます）' },
   { k: 'card', label: 'カード売上', type: 'money', hint: 'PAYGATEのクレジット等' },
   { k: 'qr', label: 'QR・電子マネー', type: 'money' },
   { k: 'other', label: 'その他（掛売・食券等）', type: 'money' },
@@ -1161,8 +1180,7 @@ function dailyMailText(v, lines, orders) {
     t += `　人件費：${int(k.labor)}円（人件費率 ${pc(k.laborR)}）\n`;
     t += `　FLコスト：${int(k.fl)}円（FL比率 ${pc(k.flR)}）\n`;
     t += `　その他経費：${int(k.exp)}円\n`;
-    t += `　損益分岐点の売上：${isFinite(k.bep) ? int(k.bep) + '円' : '—'}${isFinite(k.need) && k.need > 0 ? `（あと ${int(k.need)}円）` : '（達成）'}\n`;
-    t += `　今のところの利益：${int(k.profit)}円\n`;
+    t += `　売買差益：${int(k.gross)}円（売上−仕入）\n`;
   }
   return t;
 }
@@ -1287,7 +1305,8 @@ function dailyForm(date) {
         await Store.put(oNew, moved || !l.id ? uid() : l.id, o); m++;
       }
       for (const o of beforeO) if (!dailyOrders.some(l => l.id === o.id)) await Store.put(oOld, o.id, null);
-      toast('日報を保存しました' + (n || m ? `（仕入 ${n}件・発注 ${m}件を記帳）` : ''));
+      S.cache = {}; // 売上小銭の繰越など、日報から計算しているものを作り直す
+      toast('日報を保存しました' + (n || m ? `（仕入 ${n}件・発注 ${m}件を記帳）` : '') + (coinAutoAmt(v.cash) ? `（売上小銭 ${yen(coinAutoAmt(v.cash))} も記帳）` : ''));
       sendDailyMail(v, dailyLines, dailyOrders);
     },
     onDelete: rec ? async () => { // 日報から記帳した仕入・発注もいっしょに消す
@@ -1297,6 +1316,7 @@ function dailyForm(date) {
       for (const p of ps) await Store.put(MK('purch', ym), p.id, null);
       for (const o of os) await Store.put(MK('order', ym), o.id, null);
       await Store.put(MK('daily', ym), date, null);
+      S.cache = {};
       closeModal();
       toast('日報を削除しました' + (ps.length || os.length ? `（仕入 ${ps.length}件・発注 ${os.length}件も削除）` : ''));
     } : null,
@@ -1366,13 +1386,14 @@ function monthKPI(ym) {
   const fix = labor + exp;                       // 人件費＋経費を固定費とみなす簡易計算
   const bep = costR < 1 ? fix / (1 - (isFinite(costR) ? costR : 0)) : NaN;
   const profit = sales - purch - labor - exp;
+  const gross = sales - purch;                   // 売買差益（粗利）＝売上−仕入
   const days = monthDays(ym).length;
   const done = recs.length;                      // 日報を書いた日数＝営業日数
   const td = today();
   const past = ymOf(td) === ym ? Number(td.slice(8, 10)) : days;
   const left = Math.max(0, days - past);
   return {
-    ym, sales, purch, labor, exp, fl, costR, laborR, flR, bep, profit, days, done, left,
+    ym, sales, purch, labor, exp, fl, costR, laborR, flR, bep, profit, gross, days, done, left,
     need: isFinite(bep) ? Math.max(0, bep - sales) : NaN,
     perDay: isFinite(bep) && left ? Math.max(0, bep - sales) / left : NaN,
     avg: done ? sales / done : 0,
@@ -2515,52 +2536,69 @@ A.cashCSV = async () => saveFile(`小口現金出納帳_${S.month}.csv`, toCSV(a
 A.cashPrint = async () => printTable(`小口現金出納帳_${S.month}.html`, `小口現金出納帳　${ymLabel(S.month)}`, await cashTableRows(), { foot: true, n: [3, 4, 5], note: '経費帳・仕入帳で支払方法を「小口現金」にした取引も含みます。月末の残高と、実際の手元現金が合うか確認してください。' });
 
 /* ---------- 売上小銭出納帳 ---------- */
-const COIN_KINDS = ['売上小銭', '両替'];
+const COIN_KINDS = ['売上小銭', '銀行入金', '両替'];
 const F_COIN = [
   { k: 'date', label: '日付', type: 'date', req: true },
-  { k: 'kind', label: '区分', type: 'select', opts: COIN_KINDS, def: '売上小銭', hint: '「売上小銭」は手元が増える、「両替」は銀行に持って行って減る' },
+  { k: 'kind', label: '区分', type: 'select', opts: COIN_KINDS, def: '売上小銭', hint: '「売上小銭」は手元が増える分。「銀行入金」は貯まった現金を銀行の口座に入れた分、「両替」は小銭を札に替えた分で、どちらも手元が減ります' },
   { k: 'amount', label: '金額', type: 'money', req: true },
-  { k: 'desc', label: '摘要', full: true, ph: '空欄なら「売上小銭　売上（金額）」のように自動で入ります' },
-  { k: 'payee', label: '取引先', list: () => [SET().shop || '', ...suppliers().map(s => s.name)].filter(Boolean) },
+  { k: 'desc', label: '摘要', full: true, ph: '空欄なら「売上入金（金額）」のように自動で入ります' },
+  { k: 'payee', label: '取引先・入金先', list: () => [SET().bank || '', SET().shop || '', ...suppliers().map(s => s.name)].filter(Boolean) },
   { k: 'note', label: 'メモ', full: true },
 ];
-const coinDesc = v => v.desc || (v.kind === '両替' ? `両替＋売上入金済み（${int(num(v.amount))}）` : `売上小銭　売上（${int(num(v.amount))}）`);
+const coinDesc = v => v.desc || (v.kind === '銀行入金' ? `売上入金（${int(num(v.amount))}）` : v.kind === '両替' ? `両替（${int(num(v.amount))}）` : `売上小銭　売上（${int(num(v.amount))}）`);
 const coinCrud = crud({ key: v => MK('coin', ymOf(v.date)), fields: F_COIN, title: '売上小銭', defaults: { kind: '売上小銭' }, afterSave: () => { S.cache = {}; } });
-A.coinAdd = el => coinCrud.add({ date: today(), kind: el && el.dataset && el.dataset.k === 'ex' ? '両替' : '売上小銭', payee: SET().shop || '' });
-A.coinEdit = el => coinCrud.edit(Store.get(MK('coin', S.month), el.dataset.id));
-const coinList = () => L('coin', S.month).sort(byDate);
+let coinBal = 0; // いまの手元残高（入金の初期値に使う）
+const dep1k = bal => bal >= 1000 ? Math.floor(bal / 1000) * 1000 : ''; // 1,000円単位で入金できる額
+A.coinAdd = el => {
+  const k = el && el.dataset ? el.dataset.k : ''; const set = SET();
+  if (k === 'dep') return coinCrud.add({ date: today(), kind: '銀行入金', payee: set.bank || '', amount: dep1k(coinBal) });
+  if (k === 'ex') return coinCrud.add({ date: today(), kind: '両替', payee: set.bank || '' });
+  coinCrud.add({ date: today(), kind: '売上小銭', payee: set.shop || '' });
+};
+A.coinEdit = el => {
+  if (el.dataset.src === 'daily') return dailyForm(el.dataset.id);
+  coinCrud.edit(Store.get(MK('coin', S.month), el.dataset.id));
+};
+const coinList = () => coinLines(S.month);
+const COIN_AUTO_LABEL = { '全額': '日報の現金売上を全額', '端数': '日報の現金売上の1,000円未満の端数', 'なし': '自動記帳なし' };
 P.coin = {
   month: true,
-  keys: () => [MK('coin', S.month)],
+  keys: () => [MK('coin', S.month), MK('daily', S.month)],
   render() {
     const ck = 'coin_' + S.month;
     if (S.cache[ck] === undefined) { S.cache[ck] = null; coinCarry(S.month).then(v => { S.cache[ck] = v; render(); }); }
     const carry = S.cache[ck];
+    const mode = SET().coinAuto || '全額';
     const list = coinList(); let bal = num(carry);
-    const tin = sum(list, coinIn), tout = sum(list, coinOut);
-    const rows = list.map((r, i) => {
-      bal += coinIn(r) - coinOut(r);
-      return `<tr class="click${r.kind === '両替' ? ' ex' : ''}" data-act="coinEdit" data-id="${esc(r.id)}"><td class="n muted">${i + 1}</td><td>${dLabel(r.date)}</td><td class="wrap">${esc(coinDesc(r))}</td><td>${esc(r.payee || '')}</td><td class="n">${coinIn(r) ? yen(coinIn(r)) : ''}</td><td class="n">${coinOut(r) ? yen(coinOut(r)) : ''}</td><td class="n"><b class="${bal < 0 ? 'pill bad' : ''}">${yen(bal)}</b></td></tr>`;
+    const tin = sum(list, l => l.inAmt), tout = sum(list, l => l.outAmt);
+    const auto = list.filter(l => l.src === 'daily');
+    coinBal = num(carry) + tin - tout; // 入金ボタンの初期値用
+    const canDep = dep1k(coinBal);
+    const rows = list.map((l, i) => {
+      bal += l.inAmt - l.outAmt;
+      return `<tr class="click${l.outAmt ? ' ex' : ''}" data-act="coinEdit" data-src="${esc(l.src)}" data-id="${esc(l.src === 'daily' ? l.rec.date : l.rec.id)}"><td class="n muted">${i + 1}</td><td>${dLabel(l.date)}</td><td class="wrap">${esc(l.desc || '')}${l.src === 'daily' ? ' <span class="pill acc">日報から</span>' : ''}</td><td>${esc(l.payee || '')}</td><td class="n">${l.inAmt ? yen(l.inAmt) : ''}</td><td class="n">${l.outAmt ? yen(l.outAmt) : ''}</td><td class="n"><b class="${bal < 0 ? 'pill bad' : ''}">${yen(bal)}</b></td></tr>`;
     }).join('');
-    return `<div class="stats">${stat('前月繰越', carry == null ? '計算中…' : yen(carry))}${stat('売上小銭（入）', yen(tin), list.filter(r => r.kind !== '両替').length + '件')}${stat('両替（出）', yen(tout), list.filter(r => r.kind === '両替').length + '件')}${stat('差引残高', carry == null ? '…' : yen(num(carry) + tin - tout), '手元の小銭と合うか確認')}</div>
-    <div class="toolbar"><button class="btn primary" data-act="coinAdd">＋ 売上小銭（入）</button><button class="btn" data-act="coinAdd" data-k="ex">＋ 両替（出）</button><span class="sp"></span><button class="btn" data-act="coinCSV">CSV保存</button><button class="btn" data-act="coinPrint">A4の印刷用に保存</button></div>
-    ${list.length ? `<div class="tw"><table class="tbl"><thead><tr><th class="n">NO</th><th>日</th><th>摘要</th><th>取引先</th><th class="n">売上小銭</th><th class="n">両替</th><th class="n">差引残高</th></tr></thead>
+    return `<div class="stats">${stat('前月繰越', carry == null ? '計算中…' : yen(carry))}${stat('売上小銭（入）', yen(tin), list.filter(l => l.inAmt).length + '件' + (auto.length ? `（日報から${auto.length}件）` : ''))}${stat('入金・両替（出）', yen(tout), list.filter(l => l.outAmt).length + '件')}${stat('差引残高', carry == null ? '…' : yen(coinBal), '手元に残っている現金・小銭')}</div>
+    <div class="note-box ${mode === 'なし' ? '' : 'ok'}">${mode === 'なし' ? '日報からの自動記帳は<b>オフ</b>です（設定の「売上小銭の自動記帳」で変えられます）。' : `日報を保存すると、その日の<b>現金売上（${esc(COIN_AUTO_LABEL[mode])}）</b>が「日報から」としてこの帳面に自動で入ります。金額を変えたいときは、その日の行を押して日報の現金売上を直してください。同じ日に手入力の「売上小銭」を足すと、自動のぶんはそちらに置きかわります。`}</div>
+    ${carry == null ? '' : `<div class="note-box bar${canDep ? ' ok' : ''}"><span class="sp">${canDep ? `手元に <b>${yen(coinBal)}</b> あります。1,000円単位で <b>${yen(canDep)}</b> まで銀行に入金できます。` : `手元は <b>${yen(coinBal)}</b> です。1,000円貯まったら「銀行入金」で記録してください。`}</span>${canDep ? '<button class="btn primary" data-act="coinAdd" data-k="dep">＋ 銀行入金（この額を入れる）</button>' : ''}</div>`}
+    <div class="toolbar"><button class="btn primary" data-act="coinAdd" data-k="dep">＋ 銀行入金（出）</button>${mode === '全額' ? '' : '<button class="btn" data-act="coinAdd" data-k="ex">＋ 両替（出）</button>'}<button class="btn" data-act="coinAdd">＋ 売上小銭（手入力）</button><span class="sp"></span><button class="btn" data-act="coinCSV">CSV保存</button><button class="btn" data-act="coinPrint">A4の印刷用に保存</button></div>
+    ${list.length ? `<div class="tw"><table class="tbl"><thead><tr><th class="n">NO</th><th>日</th><th>摘要</th><th>取引先・入金先</th><th class="n">売上小銭</th><th class="n">入金・両替</th><th class="n">差引残高</th></tr></thead>
     <tbody><tr class="dim"><td></td><td>${dLabel(S.month + '-01')}</td><td>前月繰越</td><td></td><td></td><td></td><td class="n">${yen(carry)}</td></tr>${rows}</tbody>
     <tfoot><tr><td colspan="4">合計</td><td class="n">${yen(tin)}</td><td class="n">${yen(tout)}</td><td class="n">${carry == null ? '' : yen(num(carry) + tin - tout)}</td></tr></tfoot></table></div>`
-        : emptyBox(ymLabel(S.month) + 'の記帳はまだありません', 'レジに貯まった小銭（売上）と、銀行での両替・入金を記録します', '<button class="btn primary" data-act="coinAdd">＋ 売上小銭（入）</button>')}
-    <p class="hint">日報の現金売上のうち、手元に貯まる小銭を記録する帳面です。「両替」で銀行に持って行った分だけ減ります。開始残高は「設定」の「売上小銭の開始残高・開始月」で決めます。</p>`;
+        : emptyBox(ymLabel(S.month) + 'の記帳はまだありません', '日報に現金売上を入れると自動で載ります。銀行への入金・両替はここから記録してください', '<button class="btn primary" data-act="coinAdd" data-k="dep">＋ 銀行入金（出）</button>')}
+    <p class="hint">日報の現金売上から手元に貯まっていく現金・小銭を追う帳面です。「銀行入金」で口座に入れた分だけ減ります。差引残高が、いま金庫・レジに残っている現金です。小銭を札に替えただけ（両替）では手元の合計が変わらないので記録はいりません（「1,000円未満の端数だけ」で小銭だけを追っているときは「両替」で減らしてください）。「銀行入金」は年間集計の仕訳では「普通預金／現金」として出ます。開始残高は「設定」の「売上小銭の開始残高・開始月」で決めます。</p>`;
   }
 };
 const coinRows = async () => {
   const carry = await coinCarry(S.month); let bal = num(carry);
   const list = coinList();
-  return [['NO', '日', '摘要', '取引先', '売上小銭', '両替', '差引残高'],
+  return [['NO', '日', '摘要', '取引先・入金先', '売上小銭', '入金・両替', '差引残高'],
     ['', S.month + '-01', '前月繰越', '', '', '', Math.round(num(carry))],
-    ...list.map((r, i) => { bal += coinIn(r) - coinOut(r); return [i + 1, r.date, coinDesc(r), r.payee || '', coinIn(r) || '', coinOut(r) || '', Math.round(bal)]; }),
-    ['合計', '', '', '', sum(list, coinIn), sum(list, coinOut), Math.round(bal)]];
+    ...list.map((l, i) => { bal += l.inAmt - l.outAmt; return [i + 1, l.date, l.desc, l.payee || '', l.inAmt || '', l.outAmt || '', Math.round(bal)]; }),
+    ['合計', '', '', '', sum(list, l => l.inAmt), sum(list, l => l.outAmt), Math.round(bal)]];
 };
 A.coinCSV = async () => saveFile(`売上小銭出納帳_${S.month}.csv`, toCSV(await coinRows()));
-A.coinPrint = async () => printTable(`売上小銭出納帳_${S.month}.html`, `売上小銭現金出納表　${ymLabel(S.month)}`, await coinRows(), { foot: true, n: [0, 4, 5, 6], count: coinList().length, note: '「売上小銭」は手元に入った小銭、「両替」は銀行へ持って行って減った分です。月末の差引残高と、実際の手元の小銭が合うか確認してください。' });
+A.coinPrint = async () => printTable(`売上小銭出納帳_${S.month}.html`, `売上小銭現金出納表　${ymLabel(S.month)}`, await coinRows(), { foot: true, n: [0, 4, 5, 6], count: coinList().length, note: '「売上小銭」は手元に入った現金・小銭（日報の現金売上から自動で記帳）、「入金・両替」は銀行の口座に入れた分と札に替えた分です。月末の差引残高と、実際の手元の現金が合うか確認してください。' });
 
 /* ---------- 経費帳 ---------- */
 const F_EXP = [
@@ -2726,7 +2764,7 @@ const TAXCLS = { s10: '課税売上10%', s8: '課税売上8%（軽）', p10: '�
 const ptax = t => num(t) === 10 ? TAXCLS.p10 : num(t) === 8 ? TAXCLS.p8 : TAXCLS.no;
 async function loadYear(year) {
   const months = Array.from({ length: 12 }, (_, i) => `${year}-${pad(i + 1)}`);
-  const names = ['daily', 'purch', 'exp', 'cash', 'dep', 'pay', 'time', 'inv'];
+  const names = ['daily', 'purch', 'exp', 'cash', 'coin', 'dep', 'pay', 'time', 'inv'];
   const out = {};
   await Promise.all(months.flatMap(m => names.map(async n => { out[n + '_' + m] = await Store.fetch(MK(n, m)); })));
   out['inv_prevdec'] = await Store.fetch(MK('inv', `${year - 1}-12`));
@@ -2763,6 +2801,10 @@ function buildYear(year, Y) {
       if (EXP_ACCOUNTS.includes(c.account) || c.account === '仕入高') add(c.account, i, amt);
       entry(c.date, [{ d: c.account, dv: amt, dt: ptax(c.tax) }, { c: '現金', cv: amt }], '小口 ' + (c.desc || ''));
     }
+    for (const c of Y.get('coin', m).sort(byDate)) { // 売上の現金を銀行へ入金（両替は現金のまま＝仕訳なし）
+      const amt = num(c.amount); if (!amt || c.kind !== '銀行入金') continue;
+      entry(c.date, [{ d: '普通預金', dv: amt }, { c: '現金', cv: amt }], '売上現金を入金 ' + (c.payee || ''));
+    }
     for (const d of Y.get('dep', m).sort(byDate)) {
       const g = num(d.gross), f = num(d.fee); if (!g) continue; if (f) add('支払手数料', i, f);
       const L2 = [{ d: '普通預金', dv: g - f }]; if (f) L2.push({ d: '支払手数料', dv: f, dt: TAXCLS.np }); L2.push({ c: '売掛金', cv: g });
@@ -2794,7 +2836,7 @@ P.annual = {
     const exps = EXP_ACCOUNTS.filter(a => R.acc[a]);
     const expTot = sum(exps, tot);
     const rowsA = ['売上高', '仕入高', ...exps];
-    return `<div class="note-box">青色申告決算書（一般用）の1ページ目に対応する数字です。${S.year}年1月〜12月の日報・仕入帳・経費帳・小口現金出納帳・給与・固定資産台帳から集計しています。家賃の家事按分や年末の未払・前払などの決算整理は反映していないので、最終的な数字は会計ソフトや税理士さんと確認してください。</div>
+    return `<div class="note-box">青色申告決算書（一般用）の1ページ目に対応する数字です。${S.year}年1月〜12月の日報・仕入帳・経費帳・小口現金出納帳・売上小銭出納帳・給与・固定資産台帳から集計しています。家賃の家事按分や年末の未払・前払などの決算整理は反映していないので、最終的な数字は会計ソフトや税理士さんと確認してください。</div>
     <div class="toolbar"><button class="btn" data-act="annualReload">再集計</button><span class="sp"></span><button class="btn primary" data-act="journalCSV">仕訳帳CSV（会計ソフト取込用）</button><button class="btn" data-act="annualCSV">月別集計CSV</button><button class="btn" data-act="annualPrint">月別集計をA4印刷</button><button class="btn" data-act="journalPrint">仕訳帳をA4印刷</button></div>
     <div class="grid g2" style="margin-bottom:24px">
       <div class="card"><h3>損益計算（青色申告決算書 形式）</h3><dl class="kv">
@@ -2828,7 +2870,9 @@ const F_SET = [
   { k: 'addr', label: '所在地', full: true }, { k: 'invoiceNo', label: '適格請求書発行事業者 登録番号', ph: 'T＋13桁（未登録なら空欄）' }, { k: 'openDate', label: '開業日', type: 'date' },
   { k: 'float', label: 'レジ釣銭準備金', type: 'money' }, { k: 'cashStart', label: '小口現金の開始残高', type: 'money' },
   { k: 'cashStartMonth', label: '小口現金の開始月', type: 'month' },
-  { k: 'coinStart', label: '売上小銭の開始残高', type: 'money', hint: '売上小銭出納帳のいちばん最初の繰越額' }, { k: 'coinStartMonth', label: '売上小銭の開始月', type: 'month' }, { k: 'invStart', label: '期首商品棚卸高（開業年）', type: 'money' },
+  { k: 'coinStart', label: '売上小銭の開始残高', type: 'money', hint: '売上小銭出納帳のいちばん最初の繰越額' }, { k: 'coinStartMonth', label: '売上小銭の開始月', type: 'month' },
+  { k: 'bank', label: '売上を入金する銀行', full: true, ph: '例：第四北越銀行 糸魚川支店', hint: '「売上小銭出納帳」の銀行入金・両替の入金先として最初から入ります' },
+  { k: 'coinAuto', label: '売上小銭の自動記帳', type: 'select', opts: [{ v: '全額', l: '日報の現金売上を全額入れる' }, { v: '端数', l: '1,000円未満の端数だけ入れる' }, { v: 'なし', l: '自動では入れない（手入力のみ）' }], hint: '日報を保存すると、その日の現金売上が売上小銭出納帳に自動で載ります' }, { k: 'invStart', label: '期首商品棚卸高（開業年）', type: 'money' },
   { k: 'weekLimit', label: '週の法定労働時間', type: 'select', opts: [{ v: 40, l: '40時間' }, { v: 44, l: '44時間（常時10人未満の飲食店＝特例措置対象事業場）' }] },
   { k: 'nightPay', label: '深夜割増', type: 'check', cl: '22時〜5時の勤務に25%の割増を付ける', hint: '22時までの営業で深夜の勤務がない場合だけ外してください。22時以降に働いた分の割増は労働基準法で義務づけられています' },
   { k: 'reportMail', label: '日報の送信先メール（宛先）', full: true, hint: '複数入れられます。カンマか改行で区切ってください（例：aaa@x.jp, bbb@y.jp）' },
@@ -2876,7 +2920,7 @@ A.memberDel = async el => { if (!confirmDel()) return; try { await SB.req('/rest
 A.logout = () => { SB.logout(); location.reload(); };
 A.setSave = async () => {
   const v = { ...(Store.get('settings', 'main') || DEF_SET) }; delete v.id;
-  for (const f of F_SET) { const el = $('#f_set_' + f.k); if (!el) continue; v[f.k] = f.type === 'money' || f.type === 'num' ? num(el.value) : f.k === 'weekLimit' ? Number(el.value) : el.value.trim(); }
+  for (const f of F_SET) { const el = $('#f_set_' + f.k); if (!el) continue; v[f.k] = f.type === 'check' ? el.checked : f.type === 'money' || f.type === 'num' ? num(el.value) : f.k === 'weekLimit' ? Number(el.value) : el.value.trim(); }
   await Store.put('settings', 'main', v); S.cache = {}; toast('設定を保存しました');
 };
 CHG.me = el => { S.me = el.value; lsSet('rk.me', S.me); render(); };
