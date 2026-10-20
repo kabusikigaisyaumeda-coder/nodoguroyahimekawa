@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-AbAKfNV48W9KFvAwrJISCBwYRuOJFaSTTUN+30p018g='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data: blob: https://tzmptqweehooidklvhpv.supabase.co; object-src https://tzmptqweehooidklvhpv.supabase.co; base-uri 'none'; form-action 'none'; manifest-src 'self'"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="のどぐろ家姫川"><meta name="theme-color" content="#23467A"></head><body>
+<html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-/+3T7+12OgdBPLfcELGz4JErhCJYk7FE16xNo3nKlKA='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data: blob: https://tzmptqweehooidklvhpv.supabase.co; object-src https://tzmptqweehooidklvhpv.supabase.co; base-uri 'none'; form-action 'none'; manifest-src 'self'"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="のどぐろ家姫川"><meta name="theme-color" content="#23467A"></head><body>
 <title>のどぐろ家姫川</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -320,7 +320,8 @@ const DENOMS = [10000, 5000, 1000, 500, 100, 50, 10, 5, 1];
 const WEATHER = ['晴れ', '曇り', '雨', '雪', '晴れ時々曇り', '曇り時々雨'];
 // 定額法の償却率（平成19年4月1日以後取得）
 const SL_RATE = { 2: .5, 3: .334, 4: .25, 5: .2, 6: .167, 7: .143, 8: .125, 9: .112, 10: .1, 11: .091, 12: .084, 13: .077, 14: .072, 15: .067, 16: .063, 17: .059, 18: .056, 19: .053, 20: .05, 22: .046, 24: .042, 25: .04, 30: .034, 34: .03, 39: .026, 47: .022 };
-const DEF_SET = { shop: '', trade: '', owner: '', addr: '', tel: '', invoiceNo: '', openDate: '', float: 30000, cashStart: 0, cashStartMonth: '', coinStart: 0, coinStartMonth: '', snsPlace: '糸魚川', snsTag: '', invStart: 0, weekLimit: 40, payday: 25, monthlyHours: 173, reportMail: 'kabusikigaisya.umeda@gmail.com', reportCc: '' };
+const DEF_SET = { shop: '', trade: '', owner: '', addr: '', tel: '', invoiceNo: '', openDate: '', float: 30000, cashStart: 0, cashStartMonth: '', coinStart: 0, coinStartMonth: '', snsPlace: '糸魚川', snsTag: '', invStart: 0, weekLimit: 40, payday: 25, monthlyHours: 173, reportMail: 'kabusikigaisya.umeda@gmail.com', reportCc: '', nightPay: true };
+const useNight = () => SET().nightPay !== false; // 深夜割増（22時〜5時）を使うか
 // 「,」「;」改行・空白で区切られたメールアドレスを配列に
 const mailList = v => String(v || '').split(/[,;、\s]+/).map(x => x.trim()).filter(x => /^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(x));
 const DEF_TMPL = [
@@ -891,7 +892,7 @@ function payCalc(staff, tm, adj) {
   const base = staff.payType === 'month' ? num(staff.rate) : Math.round(num(staff.rate) * tm.work / 60);
   const ot1 = Math.min(tm.ot, 3600), ot2 = Math.max(0, tm.ot - 3600); // 月60時間を超える部分は50%割増
   const otPrem = Math.round(hourly * ((staff.payType === 'month' ? 1.25 : 0.25) * ot1 + (staff.payType === 'month' ? 1.5 : 0.5) * ot2) / 60);
-  const nightPrem = Math.round(hourly * 0.25 * tm.night / 60);
+  const nightPrem = set.nightPay === false ? 0 : Math.round(hourly * 0.25 * tm.night / 60);
   const commute = staff.commuteType === 'month' ? num(staff.commute) : Math.round(num(staff.commute) * tm.days);
   const allowance = num(adj.allowance);
   const gross = base + otPrem + nightPrem + commute + allowance;
@@ -1880,14 +1881,14 @@ P.time = {
           : onBreak ? `<button class="btn" data-act="punch" data-k="be" data-s="${esc(s.id)}">休憩終了</button><button class="btn" disabled>退勤</button>`
             : `<button class="btn" data-act="punch" data-k="bs" data-s="${esc(s.id)}">休憩開始</button><button class="btn primary" data-act="punch" data-k="out" data-s="${esc(s.id)}">退勤</button>`}</div></div>`;
     }).join('')}</div>` : emptyBox('スタッフが登録されていません', '「スタッフ名簿」で登録すると、ここに打刻ボタンが並びます', '<button class="btn primary" data-go="staff">スタッフ名簿へ</button>');
-    const sumRows = staffAll().filter(s => sm[s.id]).map((s, i) => { const x = sm[s.id]; return `<tr><td>${esc(s.name)}</td><td class="n">${x.days}日</td><td class="n">${hrs(x.work)}h</td><td class="n">${hrs(x.ot)}h ${otPill(x.ot)}</td><td class="n">${hrs(x.night)}h</td><td><button class="btn sm" data-act="timePrintOne" data-id="${esc(s.id)}" data-no="${i + 1}">この人の出勤簿をA4印刷</button></td></tr>`; }).join('');
+    const sumRows = staffAll().filter(s => sm[s.id]).map((s, i) => { const x = sm[s.id]; return `<tr><td>${esc(s.name)}</td><td class="n">${x.days}日</td><td class="n">${hrs(x.work)}h</td><td class="n">${hrs(x.ot)}h ${otPill(x.ot)}</td>${useNight() ? `<td class="n">${hrs(x.night)}h</td>` : (x.night ? `<td class="n"><span class="pill warn">22時以降 ${hrs(x.night)}h</span></td>` : '<td></td>')}<td><button class="btn sm" data-act="timePrintOne" data-id="${esc(s.id)}" data-no="${i + 1}">この人の出勤簿をA4印刷</button></td></tr>`; }).join('');
     return `<div class="toolbar"><span class="muted small">打刻は現在時刻で記録されます（${dLong(today())}）</span></div>${punch}
     <section class="sec"><h3>${ymLabel(S.month)}の集計<span class="sp"></span><button class="btn sm" data-act="timeCSV">出勤簿CSV</button><button class="btn sm" data-act="timePrint">一覧をA4印刷</button><button class="btn sm primary" data-act="timePrintAll">全員分をA4印刷（1人1枚）</button></h3>
-      ${sumRows ? `<div class="tw"><table class="tbl"><thead><tr><th>氏名</th><th class="n">出勤日数</th><th class="n">実働時間</th><th class="n">法定時間外</th><th class="n">深夜（22〜5時）</th><th></th></tr></thead><tbody>${sumRows}</tbody></table></div>` : emptyBox('この月の勤怠記録はありません', '')}
+      ${sumRows ? `<div class="tw"><table class="tbl"><thead><tr><th>氏名</th><th class="n">出勤日数</th><th class="n">実働時間</th><th class="n">法定時間外</th>${useNight() ? '<th class="n">深夜（22〜5時）</th>' : ''}<th></th></tr></thead><tbody>${sumRows}</tbody></table></div>` : emptyBox('この月の勤怠記録はありません', '')}
       <p class="hint">法定時間外＝1日8時間超＋週${SET().weekLimit}時間超（日曜始まり・月内で集計）。分単位で計算しています（切り捨てはしません）。時間外労働には36協定の届出が必要で、上限は原則 月45時間・年360時間です（45h超・60h超に印が付きます）。</p>
     </section>
     <section class="sec"><h3>打刻の記録<span class="sp"></span><button class="btn sm" data-act="timeAdd">＋ 手入力で追加</button></h3>
-      ${recs.length ? `<div class="tw"><table class="tbl"><thead><tr><th>日付</th><th>氏名</th><th>出勤</th><th>退勤</th><th class="n">休憩</th><th class="n">実働</th><th class="n">深夜</th><th>備考</th></tr></thead><tbody>${recs.slice().reverse().map(t => { const c = timeCalc(t) || {}; return `<tr class="click" data-act="timeEdit" data-id="${esc(t.id)}"><td>${dLabel(t.date)}</td><td>${esc(staffName(t.staff))}</td><td>${m2hm(t.in)}</td><td>${t.out != null ? m2hm(t.out < t.in ? t.out + 1440 : t.out) : '<span class="pill ok">勤務中</span>'}</td><td class="n">${c.brk != null ? c.brk + '分' : ''}</td><td class="n">${c.open ? '—' : hrs(c.work) + 'h'}</td><td class="n">${c.night ? hrs(c.night) + 'h' : ''}</td><td class="small">${t.edited ? '<span class="pill warn">修正</span> ' : ''}${esc(t.note || '')}</td></tr>`; }).join('')}</tbody></table></div>` : ''}
+      ${recs.length ? `<div class="tw"><table class="tbl"><thead><tr><th>日付</th><th>氏名</th><th>出勤</th><th>退勤</th><th class="n">休憩</th><th class="n">実働</th>${useNight() ? '<th class="n">深夜</th>' : ''}<th>備考</th></tr></thead><tbody>${recs.slice().reverse().map(t => { const c = timeCalc(t) || {}; return `<tr class="click" data-act="timeEdit" data-id="${esc(t.id)}"><td>${dLabel(t.date)}</td><td>${esc(staffName(t.staff))}</td><td>${m2hm(t.in)}</td><td>${t.out != null ? m2hm(t.out < t.in ? t.out + 1440 : t.out) : '<span class="pill ok">勤務中</span>'}</td><td class="n">${c.brk != null ? c.brk + '分' : ''}</td><td class="n">${c.open ? '—' : hrs(c.work) + 'h'}</td>${useNight() ? `<td class="n">${c.night ? hrs(c.night) + 'h' : ''}</td>` : ''}<td class="small">${!useNight() && c.night ? '<span class="pill warn">22時以降あり</span> ' : ''}${t.edited ? '<span class="pill warn">修正</span> ' : ''}${esc(t.note || '')}</td></tr>`; }).join('')}</tbody></table></div>` : ''}
     </section>`;
   }
 };
@@ -1929,10 +1930,11 @@ A.timeAdd = () => timeForm(null);
 A.timeEdit = el => timeForm(Store.get(MK('time', S.month), el.dataset.id));
 const timeRows = () => {
   const recs = L('time', S.month).sort(byDate);
-  return [['日付', '氏名', '出勤', '退勤', '休憩(分)', '実働(時間)', '深夜(時間)', '法定外(日8h超)', '備考'], ...recs.map(t => { const c = timeCalc(t) || {}; return [t.date, staffName(t.staff), m2hm(t.in), t.out != null ? m2hm(t.out < t.in ? t.out + 1440 : t.out) : '', c.brk || 0, hrs(c.work), hrs(c.night), hrs(c.ot), (t.edited ? '[修正] ' : '') + (t.note || '')]; })];
+  const nt = useNight();
+  return [['日付', '氏名', '出勤', '退勤', '休憩(分)', '実働(時間)', ...(nt ? ['深夜(時間)'] : []), '法定外(日8h超)', '備考'], ...recs.map(t => { const c = timeCalc(t) || {}; return [t.date, staffName(t.staff), m2hm(t.in), t.out != null ? m2hm(t.out < t.in ? t.out + 1440 : t.out) : '', c.brk || 0, hrs(c.work), ...(nt ? [hrs(c.night)] : []), hrs(c.ot), (t.edited ? '[修正] ' : '') + (t.note || '')]; })];
 };
 A.timeCSV = () => saveFile(`出勤簿_${S.month}.csv`, toCSV(timeRows()));
-A.timePrint = () => printTable(`出勤簿_${S.month}.html`, `出勤簿　${ymLabel(S.month)}`, timeRows(), { n: [4, 5, 6, 7], note: '労働基準法で保存が必要な帳簿です（法定三帳簿のひとつ）。' });
+A.timePrint = () => printTable(`出勤簿_${S.month}.html`, `出勤簿　${ymLabel(S.month)}`, timeRows(), { n: useNight() ? [4, 5, 6, 7] : [4, 5, 6], note: '労働基準法で保存が必要な帳簿です（法定三帳簿のひとつ）。' });
 
 /* ---- 1人ずつの出勤簿（A4・1人1枚） ---- */
 function timeSheetHTML(sid) {
@@ -1943,16 +1945,16 @@ function timeSheetHTML(sid) {
   const rows = monthDays(S.month).map(d => {
     const list = byDay[d] || []; const w = dowN(d);
     const sh = w === 0 || w === 6 ? ' style="background:#f4f4f4"' : '';
-    if (!list.length) return `<tr${sh}><td class="n">${Number(d.slice(8))}</td><td>${DOW[w]}</td><td colspan="7" style="color:#bbb">—</td></tr>`;
+    if (!list.length) return `<tr${sh}><td class="n">${Number(d.slice(8))}</td><td>${DOW[w]}</td><td colspan="${useNight() ? 7 : 6}" style="color:#bbb">—</td></tr>`;
     return list.map((t, i) => {
       const c = timeCalc(t) || {};
-      return `<tr${sh}><td class="n">${i ? '' : Number(d.slice(8))}</td><td>${i ? '' : DOW[w]}</td><td>${m2hm(t.in)}</td><td>${t.out != null ? m2hm(t.out < t.in ? t.out + 1440 : t.out) : ''}</td><td class="n">${c.brk != null ? c.brk : ''}</td><td class="n">${c.open ? '' : hrs(c.work)}</td><td class="n">${c.ot ? hrs(c.ot) : ''}</td><td class="n">${c.night ? hrs(c.night) : ''}</td><td>${esc((t.edited ? '[修正] ' : '') + (t.note || ''))}</td></tr>`;
+      return `<tr${sh}><td class="n">${i ? '' : Number(d.slice(8))}</td><td>${i ? '' : DOW[w]}</td><td>${m2hm(t.in)}</td><td>${t.out != null ? m2hm(t.out < t.in ? t.out + 1440 : t.out) : ''}</td><td class="n">${c.brk != null ? c.brk : ''}</td><td class="n">${c.open ? '' : hrs(c.work)}</td><td class="n">${c.ot ? hrs(c.ot) : ''}</td>${useNight() ? `<td class="n">${c.night ? hrs(c.night) : ''}</td>` : ''}<td>${esc((t.edited ? '[修正] ' : '') + (t.note || ''))}</td></tr>`;
     }).join('');
   }).join('');
   return `<h1>出勤簿　${esc(ymLabel(S.month))}</h1>
   <div class="meta">${esc(set.shop || set.trade || '')}　氏名：<b style="font-size:12pt">${esc(s.name)}</b>　${esc(s.empType || '')}${s.hired ? '　雇入 ' + esc(s.hired) : ''}</div>
-  <table class="sum"><tr><th>出勤日数</th><td>${sm.days}日</td><th>実働時間</th><td>${hrs(sm.work)}h</td><th>法定時間外</th><td>${hrs(sm.ot)}h</td><th>深夜(22〜5時)</th><td>${hrs(sm.night)}h</td></tr></table>
-  <table><thead><tr><th class="n">日</th><th>曜</th><th>出勤</th><th>退勤</th><th class="n">休憩(分)</th><th class="n">実働(h)</th><th class="n">時間外(h)</th><th class="n">深夜(h)</th><th>備考</th></tr></thead><tbody>${rows}</tbody></table>
+  <table class="sum"><tr><th>出勤日数</th><td>${sm.days}日</td><th>実働時間</th><td>${hrs(sm.work)}h</td><th>法定時間外</th><td>${hrs(sm.ot)}h</td>${useNight() ? `<th>深夜(22〜5時)</th><td>${hrs(sm.night)}h</td>` : ''}</tr></table>
+  <table><thead><tr><th class="n">日</th><th>曜</th><th>出勤</th><th>退勤</th><th class="n">休憩(分)</th><th class="n">実働(h)</th><th class="n">時間外(h)</th>${useNight() ? '<th class="n">深夜(h)</th>' : ''}<th>備考</th></tr></thead><tbody>${rows}</tbody></table>
   <div class="sign">上記のとおり相違ありません。　本人<span class="box"></span>　責任者<span class="box"></span></div>`;
 }
 const TIME_SHEET_CSS = `.meta{font-size:10pt;margin-bottom:3mm}
@@ -2020,9 +2022,9 @@ P.pay = {
     const rows = st.map(s => ({ s, t: tm[s.id] || { days: 0, work: 0, ot: 0, night: 0 }, adj: Store.get(MK('pay', S.month), s.id) || {} })).map(x => ({ ...x, p: payCalc(x.s, x.t, x.adj) }));
     return `<div class="stats">${stat('総支給額', yen(sum(rows, x => x.p.gross)))}${stat('控除合計', yen(sum(rows, x => x.p.dedTotal)))}${stat('差引支給額', yen(sum(rows, x => x.p.net)))}${stat('源泉所得税（預り）', yen(sum(rows, x => x.p.ded.tax)), '翌月10日までに納付（納期の特例なら半年ごと）')}</div>
     <div class="toolbar"><span class="muted small">行をタップして控除額（社会保険・雇用保険・源泉所得税・住民税）や手当を入力します。</span><span class="sp"></span><button class="btn" data-act="payCSV">賃金台帳CSV</button><button class="btn" data-act="payPrint">A4の印刷用に保存</button></div>
-    ${rows.length ? `<div class="tw"><table class="tbl"><thead><tr><th>氏名</th><th class="n">日数</th><th class="n">実働</th><th class="n">時間外</th><th class="n">深夜</th><th class="n">基本給</th><th class="n">時間外割増</th><th class="n">深夜割増</th><th class="n">通勤手当</th><th class="n">その他手当</th><th class="n">総支給</th><th class="n">控除計</th><th class="n">差引支給</th><th></th></tr></thead>
-    <tbody>${rows.map(({ s, t, p, adj }) => `<tr class="click" data-act="payEdit" data-id="${esc(s.id)}"><td>${esc(s.name)}${adj.fixed ? ' <span class="pill ok">確定</span>' : ''}</td><td class="n">${t.days}</td><td class="n">${hrs(t.work)}h</td><td class="n">${hrs(t.ot)}h ${otPill(t.ot)}</td><td class="n">${hrs(t.night)}h</td><td class="n">${yen(p.base)}</td><td class="n">${yen(p.otPrem)}</td><td class="n">${yen(p.nightPrem)}</td><td class="n">${yen(p.commute)}</td><td class="n">${yen(p.allowance)}</td><td class="n"><b>${yen(p.gross)}</b></td><td class="n">${yen(p.dedTotal)}</td><td class="n"><b>${yen(p.net)}</b></td><td><button class="btn sm" data-act="paySlip" data-id="${esc(s.id)}">明細</button></td></tr>`).join('')}</tbody></table></div>` : emptyBox('対象のスタッフがいません', '')}
-    <p class="hint">時間外は25%割増、月60時間を超えた部分は50%割増、深夜は25%割増で自動計算しています（法定休日の労働35%は手当欄で調整してください）。源泉所得税は「給与所得の源泉徴収税額表」（扶養控除等申告書の提出者は甲欄、未提出は乙欄）で確認して入力します。</p>`;
+    ${rows.length ? `<div class="tw"><table class="tbl"><thead><tr><th>氏名</th><th class="n">日数</th><th class="n">実働</th><th class="n">時間外</th>${useNight() ? '<th class="n">深夜</th>' : ''}<th class="n">基本給</th><th class="n">時間外割増</th>${useNight() ? '<th class="n">深夜割増</th>' : ''}<th class="n">通勤手当</th><th class="n">その他手当</th><th class="n">総支給</th><th class="n">控除計</th><th class="n">差引支給</th><th></th></tr></thead>
+    <tbody>${rows.map(({ s, t, p, adj }) => `<tr class="click" data-act="payEdit" data-id="${esc(s.id)}"><td>${esc(s.name)}${adj.fixed ? ' <span class="pill ok">確定</span>' : ''}</td><td class="n">${t.days}</td><td class="n">${hrs(t.work)}h</td><td class="n">${hrs(t.ot)}h ${otPill(t.ot)}</td>${useNight() ? `<td class="n">${hrs(t.night)}h</td>` : ''}<td class="n">${yen(p.base)}</td><td class="n">${yen(p.otPrem)}</td>${useNight() ? `<td class="n">${yen(p.nightPrem)}</td>` : ''}<td class="n">${yen(p.commute)}</td><td class="n">${yen(p.allowance)}</td><td class="n"><b>${yen(p.gross)}</b></td><td class="n">${yen(p.dedTotal)}</td><td class="n"><b>${yen(p.net)}</b></td><td><button class="btn sm" data-act="paySlip" data-id="${esc(s.id)}">明細</button></td></tr>`).join('')}</tbody></table></div>` : emptyBox('対象のスタッフがいません', '')}
+    <p class="hint">${useNight() ? '時間外は25%割増、月60時間を超えた部分は50%割増、深夜は25%割増で自動計算しています' : '時間外は25%割増、月60時間を超えた部分は50%割増で計算しています。深夜割増は「設定」で使わない設定になっています'}（法定休日の労働35%は手当欄で調整してください）。源泉所得税は「給与所得の源泉徴収税額表」（扶養控除等申告書の提出者は甲欄、未提出は乙欄）で確認して入力します。</p>`;
   }
 };
 const F_PAY = [
@@ -2047,20 +2049,21 @@ const PAY_SUMS = [x => x.p.base, x => x.p.otPrem, x => x.p.nightPrem, x => x.p.c
   x => x.p.ded.health, x => x.p.ded.pension, x => x.p.ded.emp, x => x.p.ded.tax, x => x.p.ded.resident, x => x.p.ded.other, x => x.p.dedTotal, x => x.p.net];
 const payTableRows = () => {
   const rows = payRows(S.month, L('time', S.month), L('pay', S.month));
-  return [['賃金計算期間', '氏名', '性別', '労働日数', '労働時間数', '時間外労働時間数', '深夜労働時間数', '基本給', '時間外割増', '深夜割増', '通勤手当', 'その他手当', '総支給額', '健康保険', '厚生年金', '雇用保険', '源泉所得税', '住民税', 'その他控除', '控除合計', '差引支給額', '支給日'],
-    ...rows.map(({ s, t, p, adj }) => [S.month, s.name, s.sex || '', t.days, hrs(t.work), hrs(t.ot), hrs(t.night), p.base, p.otPrem, p.nightPrem, p.commute, p.allowance, p.gross, p.ded.health, p.ded.pension, p.ded.emp, p.ded.tax, p.ded.resident, p.ded.other, p.dedTotal, p.net, adj.paydate || '']),
-    ['合計', rows.length + '名', '', sum(rows, x => x.t.days), hrs(sum(rows, x => x.t.work)), hrs(sum(rows, x => x.t.ot)), hrs(sum(rows, x => x.t.night)), ...PAY_SUMS.map(f => sum(rows, f)), '']];
+  const nt = useNight();
+  return [['賃金計算期間', '氏名', '性別', '労働日数', '労働時間数', '時間外労働時間数', ...(nt ? ['深夜労働時間数'] : []), '基本給', '時間外割増', ...(nt ? ['深夜割増'] : []), '通勤手当', 'その他手当', '総支給額', '健康保険', '厚生年金', '雇用保険', '源泉所得税', '住民税', 'その他控除', '控除合計', '差引支給額', '支給日'],
+    ...rows.map(({ s, t, p, adj }) => [S.month, s.name, s.sex || '', t.days, hrs(t.work), hrs(t.ot), ...(nt ? [hrs(t.night)] : []), p.base, p.otPrem, ...(nt ? [p.nightPrem] : []), p.commute, p.allowance, p.gross, p.ded.health, p.ded.pension, p.ded.emp, p.ded.tax, p.ded.resident, p.ded.other, p.dedTotal, p.net, adj.paydate || '']),
+    ['合計', rows.length + '名', '', sum(rows, x => x.t.days), hrs(sum(rows, x => x.t.work)), hrs(sum(rows, x => x.t.ot)), ...(nt ? [hrs(sum(rows, x => x.t.night))] : []), ...PAY_SUMS.filter((_, i) => nt || i !== 2).map(f => sum(rows, f)), '']];
 };
 A.payCSV = () => saveFile(`賃金台帳_${S.month}.csv`, toCSV(payTableRows()));
-A.payPrint = () => printTable(`賃金台帳_${S.month}.html`, `賃金台帳　${ymLabel(S.month)}`, payTableRows(), { land: true, fs: '6.8pt', foot: true, n: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20], note: '労働基準法で保存が必要な帳簿です（法定三帳簿のひとつ）。1人ずつの給与明細は一覧の「明細」から印刷できます。' });
+A.payPrint = () => { const rows = payTableRows(); printTable(`賃金台帳_${S.month}.html`, `賃金台帳　${ymLabel(S.month)}`, rows, { land: true, fs: '6.8pt', foot: true, n: Array.from({ length: Math.max(0, rows[0].length - 4) }, (_, i) => i + 3), note: '労働基準法で保存が必要な帳簿です（法定三帳簿のひとつ）。1人ずつの給与明細は一覧の「明細」から印刷できます。' }); };
 A.paySlip = el => {
   const s = Store.get('staff', el.dataset.id); const x = payRows(S.month, L('time', S.month), L('pay', S.month)).find(r => r.s.id === s.id) || { t: { days: 0, work: 0, ot: 0, night: 0 }, adj: {}, p: payCalc(s) };
   const set = SET(); const { t, p, adj } = x;
   const tr = (a, b) => `<tr><th>${a}</th><td class="n">${b}</td></tr>`;
   const html = printDoc(`給与明細書 ${s.name} ${S.month}`, `<h1>給与明細書</h1><div class="meta">${esc(ymLabel(S.month))}分　支給日：${esc(adj.paydate || '')}　${esc(set.shop || set.trade || '')}</div><p style="font-size:13pt">${esc(s.name)} 様</p>
   <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6mm">
-  <table><tr><th colspan="2">勤怠</th></tr>${tr('出勤日数', t.days + '日')}${tr('実働時間', hrs(t.work) + 'h')}${tr('時間外', hrs(t.ot) + 'h')}${tr('深夜', hrs(t.night) + 'h')}</table>
-  <table><tr><th colspan="2">支給</th></tr>${tr('基本給', yen(p.base))}${tr('時間外割増', yen(p.otPrem))}${tr('深夜割増', yen(p.nightPrem))}${tr('通勤手当', yen(p.commute))}${tr('その他手当', yen(p.allowance))}${tr('<b>総支給額</b>', '<b>' + yen(p.gross) + '</b>')}</table>
+  <table><tr><th colspan="2">勤怠</th></tr>${tr('出勤日数', t.days + '日')}${tr('実働時間', hrs(t.work) + 'h')}${tr('時間外', hrs(t.ot) + 'h')}${useNight() ? tr('深夜', hrs(t.night) + 'h') : ''}</table>
+  <table><tr><th colspan="2">支給</th></tr>${tr('基本給', yen(p.base))}${tr('時間外割増', yen(p.otPrem))}${useNight() ? tr('深夜割増', yen(p.nightPrem)) : ''}${tr('通勤手当', yen(p.commute))}${tr('その他手当', yen(p.allowance))}${tr('<b>総支給額</b>', '<b>' + yen(p.gross) + '</b>')}</table>
   <table><tr><th colspan="2">控除</th></tr>${tr('健康保険', yen(p.ded.health))}${tr('厚生年金', yen(p.ded.pension))}${tr('雇用保険', yen(p.ded.emp))}${tr('源泉所得税', yen(p.ded.tax))}${tr('住民税', yen(p.ded.resident))}${tr('その他', yen(p.ded.other))}${tr('<b>控除合計</b>', '<b>' + yen(p.dedTotal) + '</b>')}</table></div>
   <p style="font-size:14pt;margin-top:8mm">差引支給額　<b>${yen(p.net)}</b></p>${adj.note ? `<p>備考：${esc(adj.note)}</p>` : ''}`);
   saveFile(`給与明細_${s.name}_${S.month}.html`, html);
@@ -2827,6 +2830,7 @@ const F_SET = [
   { k: 'cashStartMonth', label: '小口現金の開始月', type: 'month' },
   { k: 'coinStart', label: '売上小銭の開始残高', type: 'money', hint: '売上小銭出納帳のいちばん最初の繰越額' }, { k: 'coinStartMonth', label: '売上小銭の開始月', type: 'month' }, { k: 'invStart', label: '期首商品棚卸高（開業年）', type: 'money' },
   { k: 'weekLimit', label: '週の法定労働時間', type: 'select', opts: [{ v: 40, l: '40時間' }, { v: 44, l: '44時間（常時10人未満の飲食店＝特例措置対象事業場）' }] },
+  { k: 'nightPay', label: '深夜割増', type: 'check', cl: '22時〜5時の勤務に25%の割増を付ける', hint: '22時までの営業で深夜の勤務がない場合だけ外してください。22時以降に働いた分の割増は労働基準法で義務づけられています' },
   { k: 'reportMail', label: '日報の送信先メール（宛先）', full: true, hint: '複数入れられます。カンマか改行で区切ってください（例：aaa@x.jp, bbb@y.jp）' },
   { k: 'reportCc', label: '日報の送信先メール（CC）', full: true, hint: '税理士さんなど、控えだけ送りたい相手。こちらも複数可' },
   { k: 'snsPlace', label: 'SNSに出す地名', ph: '糸魚川', hint: '「糸魚川は晴れ。」「#糸魚川グルメ」のように使います' },
