@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-Lwyz0eBYwA345c3thfBy5hgJbihDD2cd6ynZb/x+wnQ='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data: blob: https://tzmptqweehooidklvhpv.supabase.co; object-src https://tzmptqweehooidklvhpv.supabase.co; base-uri 'none'; form-action 'none'; manifest-src 'self'"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="のどぐろ家姫川"><meta name="theme-color" content="#23467A"></head><body>
+<html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-AbAKfNV48W9KFvAwrJISCBwYRuOJFaSTTUN+30p018g='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data: blob: https://tzmptqweehooidklvhpv.supabase.co; object-src https://tzmptqweehooidklvhpv.supabase.co; base-uri 'none'; form-action 'none'; manifest-src 'self'"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="のどぐろ家姫川"><meta name="theme-color" content="#23467A"></head><body>
 <title>のどぐろ家姫川</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -320,7 +320,9 @@ const DENOMS = [10000, 5000, 1000, 500, 100, 50, 10, 5, 1];
 const WEATHER = ['晴れ', '曇り', '雨', '雪', '晴れ時々曇り', '曇り時々雨'];
 // 定額法の償却率（平成19年4月1日以後取得）
 const SL_RATE = { 2: .5, 3: .334, 4: .25, 5: .2, 6: .167, 7: .143, 8: .125, 9: .112, 10: .1, 11: .091, 12: .084, 13: .077, 14: .072, 15: .067, 16: .063, 17: .059, 18: .056, 19: .053, 20: .05, 22: .046, 24: .042, 25: .04, 30: .034, 34: .03, 39: .026, 47: .022 };
-const DEF_SET = { shop: '', trade: '', owner: '', addr: '', tel: '', invoiceNo: '', openDate: '', float: 30000, cashStart: 0, cashStartMonth: '', coinStart: 0, coinStartMonth: '', snsPlace: '糸魚川', snsTag: '', invStart: 0, weekLimit: 40, payday: 25, monthlyHours: 173, reportMail: 'kabusikigaisya.umeda@gmail.com' };
+const DEF_SET = { shop: '', trade: '', owner: '', addr: '', tel: '', invoiceNo: '', openDate: '', float: 30000, cashStart: 0, cashStartMonth: '', coinStart: 0, coinStartMonth: '', snsPlace: '糸魚川', snsTag: '', invStart: 0, weekLimit: 40, payday: 25, monthlyHours: 173, reportMail: 'kabusikigaisya.umeda@gmail.com', reportCc: '' };
+// 「,」「;」改行・空白で区切られたメールアドレスを配列に
+const mailList = v => String(v || '').split(/[,;、\s]+/).map(x => x.trim()).filter(x => /^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(x));
 const DEF_TMPL = [
   { name: '開店前', order: 1, items: ['ガス・換気扇ON', '冷蔵庫・冷凍庫の温度確認', '手洗い・アルコール設置', 'スタッフの体調確認', '客席・トイレ清掃', 'レジ釣銭の準備', '看板・のれんを出す'] },
   { name: '閉店後', order: 2, items: ['ガス元栓を閉める', 'フライヤー・コンロの火の確認', '冷蔵庫の扉を確認', '生ごみ・ごみ出し', '床・厨房清掃', 'レジ締め', '日報を書く', '電気・エアコンOFF', '施錠'] },
@@ -1143,21 +1145,40 @@ function dailyMailText(v, lines, orders) {
   if (tps.length) t += `　出勤者の体温：${tps.map(x => `${x.name} ${x.t}℃${x.t >= FEVER ? '（要注意）' : ''}`).join('／')}\n`;
   if (v.hcNote) t += `　異常と対応：${v.hcNote}\n`;
   if (v.note) t += `\n■ 特記事項\n${String(v.note).split('\n').map(x => '　' + x).join('\n')}\n`;
+  const cc = cardCloseInfo(v.date);
+  if (cc) {
+    t += `\n■ カードの締め（${cc.label}）\n　カード売上：${int(cc.card)}円\n`;
+    if (cc.qr) t += `　QR・電子マネー：${int(cc.qr)}円\n`;
+    if (cc.other) t += `　その他（掛売等）：${int(cc.other)}円\n`;
+  }
+  const k = monthKPI(ymOf(v.date));
+  const pc = x => isFinite(x) ? (x * 100).toFixed(1) + '%' : '—';
+  if (k.sales || k.purch || k.labor) {
+    t += `\n■ ${ymLabel(ymOf(v.date))}の累計\n`;
+    t += `　売上：${int(k.sales)}円（${k.done}営業日・1日平均 ${int(k.avg)}円）\n`;
+    t += `　仕入：${int(k.purch)}円（原価率 ${pc(k.costR)}）\n`;
+    t += `　人件費：${int(k.labor)}円（人件費率 ${pc(k.laborR)}）\n`;
+    t += `　FLコスト：${int(k.fl)}円（FL比率 ${pc(k.flR)}）\n`;
+    t += `　その他経費：${int(k.exp)}円\n`;
+    t += `　損益分岐点の売上：${isFinite(k.bep) ? int(k.bep) + '円' : '—'}${isFinite(k.need) && k.need > 0 ? `（あと ${int(k.need)}円）` : '（達成）'}\n`;
+    t += `　今のところの利益：${int(k.profit)}円\n`;
+  }
   return t;
 }
 function sendDailyMail(v, lines, orders) {
   const s = SET();
-  const to = String(s.reportMail || (typeof SHOP_EMAIL === 'string' ? SHOP_EMAIL : '')).trim();
-  if (!to) { toast('送信先のメールアドレスが未設定です（設定→日報の送信先メール）'); return; }
+  const to = mailList(s.reportMail || (typeof SHOP_EMAIL === 'string' ? SHOP_EMAIL : ''));
+  const cc = mailList(s.reportCc);
+  if (!to.length) { toast('送信先のメールアドレスが未設定です（設定→日報の送信先メール）'); return; }
   const body = dailyMailText(v, lines, orders);
   const subj = `日報 ${v.date} ${s.shop || ''} 売上${int(dailyTotal(v))}円`.replace(/\s+/g, ' ').trim();
   let copied = false;
   try { const pr = navigator.clipboard && navigator.clipboard.writeText(body); if (pr) { copied = true; pr.catch(() => { copied = false; }); } } catch (e) { /* コピーできなくても続行 */ }
   const a = document.createElement('a');
-  a.href = `mailto:${to}?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(body)}`;
+  a.href = `mailto:${to.join(',')}?${cc.length ? 'cc=' + encodeURIComponent(cc.join(',')) + '&' : ''}subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(body)}`;
   a.target = '_blank'; a.rel = 'noopener'; a.style.display = 'none';
   document.body.appendChild(a); a.click(); setTimeout(() => a.remove(), 500);
-  setTimeout(() => toast(`${to} へのメールを作成しました${copied ? '（本文はコピー済み）' : ''}`), 900);
+  setTimeout(() => toast(`${to.length > 1 ? to.length + '件の宛先' : to[0]} へのメールを作成しました${cc.length ? `（CC ${cc.length}件）` : ''}${copied ? '／本文はコピー済み' : ''}`), 900);
 }
 A.dailyMailNow = () => {
   const v = readForm(F_DAILY); v.hcTemps = readTemps();
@@ -1228,9 +1249,10 @@ function dailyForm(date) {
       <small class="hint">${suppliers().length ? '食品は8%、酒類・包材は10%です。金額は税込で入力してください。' : '先に「取引先」で仕入先を登録してください。'}</small></div>
       <div class="lines"><span class="small muted" style="font-weight:700;border-top:1px solid var(--line);padding-top:12px">今日の発注（保存すると「発注」画面の履歴に残ります）</span>
       <div id="dorders" class="lines"></div></div>
+      ${dailyKpiBox(date)}
       <div class="row" style="border-top:1px solid var(--line);padding-top:12px">
         <button type="button" class="btn sm" data-act="dailyMailNow">メールだけ作る（保存しない）</button>
-        <span class="small muted">「保存して送信」で、保存のあとに ${esc(String(SET().reportMail || '送信先未設定'))} 宛のメールが作られます</span>
+        <span class="small muted">「保存して送信」で、保存のあとに ${esc(mailList(SET().reportMail).join('、') || '送信先未設定')}${mailList(SET().reportCc).length ? `（CC ${esc(mailList(SET().reportCc).join('、'))}）` : ''} 宛のメールが作られます</span>
       </div>`,
     saveLabel: '保存して送信',
     onSave: async v => {
@@ -1284,7 +1306,7 @@ A.dailyToday = () => dailyForm(today());
 A.dailyEdit = el => dailyForm(el.dataset.id);
 P.daily = {
   month: true,
-  keys: () => [MK('daily', S.month), MK('purch', S.month), 'suppliers'],
+  keys: () => [MK('daily', S.month), MK('purch', S.month), MK('time', S.month), MK('pay', S.month), MK('exp', S.month), MK('cash', S.month), 'suppliers', 'staff'],
   render() {
     const recs = L('daily', S.month); const map = Object.fromEntries(recs.map(r => [r.date, r]));
     const purchByDay = groupBy(L('purch', S.month), p => p.date);
@@ -1297,6 +1319,7 @@ P.daily = {
       return `<tr class="click ${cls}" data-act="dailyEdit" data-id="${esc(d)}"><td>${dLabel(d)}</td><td>${esc(r.weather || '')}</td><td class="n"><b>${yen(t)}</b></td><td class="n">${int(r.guests)}${(r.guestsLunch !== '' && r.guestsLunch != null) || (r.guestsDinner !== '' && r.guestsDinner != null) ? `<br><span class="small muted">昼${int(r.guestsLunch)}/夜${int(r.guestsDinner)}</span>` : ''}</td><td class="n">${num(r.guests) ? yen(t / num(r.guests)) : '—'}</td><td class="n">${r.cashLunch !== '' && r.cashLunch != null ? yen(r.cashLunch) : ''}</td><td class="n">${r.cashDinner !== '' && r.cashDinner != null ? yen(r.cashDinner) : (r.cashLunch === '' || r.cashLunch == null ? yen(r.cash) : '')}</td><td class="n">${yen(num(r.card) + num(r.qr) + num(r.other))}</td><td class="n">${pDay(r.date) ? yen(pDay(r.date)) : ''}</td><td>${haccp(r).pill}${tempList(r).length ? `<br><span class="small muted">体温${tempList(r).length}名</span>` : ''}</td><td class="wrap small">${esc(r.note || '')}</td><td class="small muted">${esc(r.by || '')}</td></tr>`;
     }).join('');
     return `<div class="stats">${stat('売上合計', yen(tot), `${recs.length}営業日`)}${stat('日平均', yen(recs.length ? tot / recs.length : 0))}${stat('客数', int(g) + '人', (g ? '平均客単価 ' + yen(tot / g) : '') + (sum(recs, r => r.guestsLunch) || sum(recs, r => r.guestsDinner) ? `　昼${int(sum(recs, r => r.guestsLunch))}/夜${int(sum(recs, r => r.guestsDinner))}` : ''))}${stat('現金売上（昼／夜）', yen(sum(recs, r => r.cashLunch)) + ' / ' + yen(sum(recs, r => (r.cashLunch === '' || r.cashLunch == null) && (r.cashDinner === '' || r.cashDinner == null) ? r.cash : r.cashDinner)))}${stat('衛生記録', recs.filter(r => haccp(r).filled).length + ' / ' + recs.length + '日', recs.filter(r => haccp(r).filled && haccp(r).ng.length).length ? '要確認 ' + recs.filter(r => haccp(r).filled && haccp(r).ng.length).length + '日' : '')}</div>
+    ${kpiCard(S.month)}
     <div class="toolbar"><button class="btn primary" data-act="dailyToday">今日の日報を書く</button><span class="sp"></span><button class="btn" data-act="dailyCSV">CSV保存</button><button class="btn" data-act="dailyPrint">A4の印刷用に保存</button><button class="btn" data-act="hcPrint">衛生記録を印刷用に保存</button></div>
     <div class="tw"><table class="tbl"><thead><tr><th>日付</th><th>天気</th><th class="n">売上</th><th class="n">客数</th><th class="n">客単価</th><th class="n">現金（ランチ）</th><th class="n">現金（ディナー）</th><th class="n">キャッシュレス</th><th class="n">仕入</th><th>衛生</th><th>特記事項</th><th>記入</th></tr></thead><tbody>${rows}</tbody>
     <tfoot><tr><td>合計</td><td></td><td class="n">${yen(tot)}</td><td class="n">${int(g)}</td><td class="n">${g ? yen(tot / g) : '—'}</td><td class="n">${yen(sum(recs, r => r.cashLunch))}</td><td class="n">${yen(sum(recs, r => (r.cashLunch === '' || r.cashLunch == null) && (r.cashDinner === '' || r.cashDinner == null) ? r.cash : r.cashDinner))}</td><td class="n">${yen(sum(recs, r => num(r.card) + num(r.qr) + num(r.other)))}</td><td class="n">${yen(sum(L('purch', S.month), p => num(p.a8) + num(p.a10)))}</td><td colspan="3"></td></tr></tfoot></table></div>
@@ -1325,6 +1348,83 @@ A.hcPrint = () => {
      <p style="font-size:9pt">○＝確認済み　×＝未確認　—＝記録なし。この記録は1年間保存してください。</p>`));
 };
 
+/* ---------- 店長が見る数字（原価率・FL・損益分岐点） ---------- */
+const FL_OK = 60, FL_WARN = 65, COST_OK = 30, COST_WARN = 35; // 目安（%）
+const rateCls2 = (v, ok, warn) => !isFinite(v) ? '' : v <= ok ? 'ok' : v <= warn ? 'warn' : 'bad';
+// その月の経営数字。日報・仕入帳・勤怠・経費帳から計算する
+function monthKPI(ym) {
+  const recs = L('daily', ym);
+  const sales = sum(recs, dailyTotal);
+  const purch = sum(L('purch', ym), p => num(p.a8) + num(p.a10));
+  const labor = sum(payRows(ym, L('time', ym), L('pay', ym)), x => x.p.gross);
+  const exp = sum(expLines(ym), e => num(e.biz));
+  const costR = sales ? purch / sales : NaN;
+  const laborR = sales ? labor / sales : NaN;
+  const fl = purch + labor;
+  const flR = sales ? fl / sales : NaN;
+  const fix = labor + exp;                       // 人件費＋経費を固定費とみなす簡易計算
+  const bep = costR < 1 ? fix / (1 - (isFinite(costR) ? costR : 0)) : NaN;
+  const profit = sales - purch - labor - exp;
+  const days = monthDays(ym).length;
+  const done = recs.length;                      // 日報を書いた日数＝営業日数
+  const td = today();
+  const past = ymOf(td) === ym ? Number(td.slice(8, 10)) : days;
+  const left = Math.max(0, days - past);
+  return {
+    ym, sales, purch, labor, exp, fl, costR, laborR, flR, bep, profit, days, done, left,
+    need: isFinite(bep) ? Math.max(0, bep - sales) : NaN,
+    perDay: isFinite(bep) && left ? Math.max(0, bep - sales) / left : NaN,
+    avg: done ? sales / done : 0,
+  };
+}
+// カードの締め（1〜15日／16日〜末日）
+const CARD_PERIODS = ym => [[1, 15, '1日〜15日'], [16, 31, `16日〜${Number(lastDay(ym).slice(8, 10))}日`]];
+const cardSum = (ym, from, to, key) => sum(L('daily', ym).filter(r => { const d = Number(String(r.date).slice(8, 10)); return d >= from && d <= to; }), r => num(r[key]));
+const isCardClose = d => { const day = Number(String(d).slice(8, 10)); return day === 15 || d === lastDay(ymOf(d)); };
+function cardCloseInfo(d) { // その日が締め日なら、その期間のカード・QRの合計を返す
+  if (!isCardClose(d)) return null;
+  const ym = ymOf(d); const day = Number(String(d).slice(8, 10));
+  const [from, to, label] = day === 15 ? CARD_PERIODS(ym)[0] : CARD_PERIODS(ym)[1];
+  return { label, from, to, card: cardSum(ym, from, to, 'card'), qr: cardSum(ym, from, to, 'qr'), other: cardSum(ym, from, to, 'other') };
+}
+// 画面用のカード
+function kpiCard(ym) {
+  const k = monthKPI(ym);
+  if (!k.sales && !k.purch && !k.labor) return '';
+  const pc = v => isFinite(v) ? (v * 100).toFixed(1) + '%' : '—';
+  return `<div class="card" style="margin-bottom:16px"><h3>${esc(ymLabel(ym))}の数字<span class="sp"></span><span class="small muted">日報・仕入帳・タイムカード・経費帳から計算</span></h3>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr));gap:12px">
+      <div><div class="small muted">売上（${k.done}営業日）</div><b style="font-size:20px">${yen(k.sales)}</b><div class="small muted">1日平均 ${yen(k.avg)}</div></div>
+      <div><div class="small muted">原価（仕入）</div><b style="font-size:20px">${yen(k.purch)}</b><div><span class="pill ${rateCls2(k.costR * 100, COST_OK, COST_WARN)}">原価率 ${pc(k.costR)}</span></div></div>
+      <div><div class="small muted">人件費</div><b style="font-size:20px">${yen(k.labor)}</b><div><span class="pill ${rateCls2(k.laborR * 100, 30, 35)}">人件費率 ${pc(k.laborR)}</span></div></div>
+      <div><div class="small muted">FLコスト（原価＋人件費）</div><b style="font-size:20px">${yen(k.fl)}</b><div><span class="pill ${rateCls2(k.flR * 100, FL_OK, FL_WARN)}">FL比率 ${pc(k.flR)}</span><span class="small muted"> 目安${FL_OK}%以下</span></div></div>
+      <div><div class="small muted">その他の経費</div><b style="font-size:20px">${yen(k.exp)}</b><div class="small muted">家賃・光熱費など</div></div>
+      <div><div class="small muted">損益分岐点の売上</div><b style="font-size:20px">${isFinite(k.bep) ? yen(k.bep) : '—'}</b><div class="small muted">${isFinite(k.need) ? (k.need > 0 ? `あと ${yen(k.need)}` : '達成しています') : ''}${isFinite(k.perDay) && k.need > 0 ? `／残り${k.left}日なら1日 ${yen(k.perDay)}` : ''}</div></div>
+      <div><div class="small muted">今のところの利益</div><b style="font-size:20px" class="${k.profit < 0 ? 'bad' : ''}">${yen(k.profit)}</b><div class="small muted">売上−仕入−人件費−経費</div></div>
+    </div>
+    <p class="hint">原価率は30%以下、FL比率は60%以下が一般的な目安です。人件費はタイムカードから計算した総支給額、経費は経費帳と小口現金の合計です。給与や家賃をまだ入力していない月は、数字が小さく出ます。</p></div>`;
+}
+// 日報を書くときに出す、小さな数字パネル
+function dailyKpiBox(d) {
+  const ym = ymOf(d); const k = monthKPI(ym); const cc = cardCloseInfo(d);
+  const pc = v => isFinite(v) ? (v * 100).toFixed(1) + '%' : '—';
+  const close = cc ? `<div class="note-box warn" style="margin:0 0 10px"><b>本日はカードの締め日です（${esc(cc.label)}）</b><br>
+    カード売上　<b style="font-size:17px">${yen(cc.card)}</b>${cc.qr ? `　／　QR・電子マネー ${yen(cc.qr)}` : ''}${cc.other ? `　／　その他 ${yen(cc.other)}` : ''}
+    <br><span class="small">この金額が入金予定額の目安です。入金されたら「売掛・買掛」で消し込みしてください。</span></div>` : '';
+  if (!k.sales && !k.purch && !k.labor && !close) return '';
+  return `<div class="lines" style="border-top:1px solid var(--line);padding-top:12px">
+    <span class="small muted" style="font-weight:700">${esc(ymLabel(ym))}の数字（ここまでの累計）</span>
+    ${close}
+    <div class="row" style="flex-wrap:wrap;gap:8px">
+      <span class="pill">売上 ${yen(k.sales)}</span>
+      <span class="pill ${rateCls2(k.costR * 100, COST_OK, COST_WARN)}">原価率 ${pc(k.costR)}</span>
+      <span class="pill ${rateCls2(k.laborR * 100, 30, 35)}">人件費率 ${pc(k.laborR)}</span>
+      <span class="pill ${rateCls2(k.flR * 100, FL_OK, FL_WARN)}">FL比率 ${pc(k.flR)}</span>
+      <span class="pill">損益分岐点 ${isFinite(k.bep) ? yen(k.bep) : '—'}</span>
+      <span class="pill ${k.profit < 0 ? 'bad' : 'ok'}">利益 ${yen(k.profit)}</span>
+    </div>
+    <small class="hint">${isFinite(k.need) && k.need > 0 ? `損益分岐点まであと ${yen(k.need)}${k.left ? `（残り${k.left}日なら1日 ${yen(k.perDay)}）` : ''}。` : '損益分岐点を超えています。'}目安は原価率${COST_OK}%以下・FL比率${FL_OK}%以下です。</small></div>`;
+}
 /* ---------- チェックリスト ---------- */
 P.check = {
   keys: () => ['tmpl', MK('check', ymOf(S.day))],
@@ -2727,7 +2827,8 @@ const F_SET = [
   { k: 'cashStartMonth', label: '小口現金の開始月', type: 'month' },
   { k: 'coinStart', label: '売上小銭の開始残高', type: 'money', hint: '売上小銭出納帳のいちばん最初の繰越額' }, { k: 'coinStartMonth', label: '売上小銭の開始月', type: 'month' }, { k: 'invStart', label: '期首商品棚卸高（開業年）', type: 'money' },
   { k: 'weekLimit', label: '週の法定労働時間', type: 'select', opts: [{ v: 40, l: '40時間' }, { v: 44, l: '44時間（常時10人未満の飲食店＝特例措置対象事業場）' }] },
-  { k: 'reportMail', label: '日報の送信先メール', type: 'email', hint: '「保存して送信」で、この宛先のメールが作成されます' },
+  { k: 'reportMail', label: '日報の送信先メール（宛先）', full: true, hint: '複数入れられます。カンマか改行で区切ってください（例：aaa@x.jp, bbb@y.jp）' },
+  { k: 'reportCc', label: '日報の送信先メール（CC）', full: true, hint: '税理士さんなど、控えだけ送りたい相手。こちらも複数可' },
   { k: 'snsPlace', label: 'SNSに出す地名', ph: '糸魚川', hint: '「糸魚川は晴れ。」「#糸魚川グルメ」のように使います' },
   { k: 'snsTag', label: 'SNSのハッシュタグ用の店名', ph: 'のどぐろ家姫川', hint: '空欄なら店名をそのまま使います（空白は詰めます）' },
   { k: 'payday', label: '給料日（翌月の日付）', type: 'num' }, { k: 'monthlyHours', label: '月給者の月所定労働時間（標準）', type: 'num' },
