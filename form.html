@@ -2,7 +2,7 @@
 <html lang="ja"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-kq8a+jy5aPWppqYWQU7zFKbl0QN2J512yDvioI0KQG0='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-FOfdP4xCRn6j/YCKL0W010rsR1HYNCzJdj49AC1+qts='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data:; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex">
 <title>ご予約フォーム</title>
@@ -315,6 +315,8 @@ button.send:disabled{opacity:.55;cursor:default}
     if (v.date > $('date').max) return showErr('申し訳ございません。' + dLong($('date').max) + ' までのご予約を承っております。');
     if (!v.time) return showErr('ご希望時間をお選びください。');
     if (!v.adults) return showErr('大人の人数をお選びください。');
+    var mxp = Math.max(1, Number(CFG.maxPeople) || 8);
+    if (Number(v.adults) + Number(v.kids) > mxp) return showErr('恐れ入りますが、Webでのご予約は合計' + mxp + '名さままでです。それ以上は直接お電話でご相談ください。');
     if (!v.name) return showErr('お名前をご入力ください。');
     if (!/^[0-9+\-()\s]{10,}$/.test(v.tel)) return showErr('お電話番号をご確認ください（市外局番からご入力ください）。');
     if (v.mail && !/^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(v.mail)) return showErr('メールアドレスをご確認ください。');

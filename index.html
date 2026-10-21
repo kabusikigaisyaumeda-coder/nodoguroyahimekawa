@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-Qkbo+hJvZ0ci82xm4wXvRSdWrXQEwlkML6uD0Bp82YY='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data: blob: https://tzmptqweehooidklvhpv.supabase.co; object-src https://tzmptqweehooidklvhpv.supabase.co; base-uri 'none'; form-action 'none'; manifest-src 'self'"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="のどぐろ家姫川"><meta name="theme-color" content="#23467A"></head><body>
+<html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-8GwR52IUUn3Ea4ETGYRORM/W7oOf/bmecHNbsAdHWoA='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data: blob: https://tzmptqweehooidklvhpv.supabase.co; object-src https://tzmptqweehooidklvhpv.supabase.co; base-uri 'none'; form-action 'none'; manifest-src 'self'"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="のどぐろ家姫川"><meta name="theme-color" content="#23467A"></head><body>
 <title>のどぐろ家姫川</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -742,7 +742,11 @@ A.webrTake = async el => {
   const id = uid();
   await Store.put(MK('resv', ymOf(v.date)), id, v);
   try { await SB.req('/rest/v1/public_resv?id=eq.' + encodeURIComponent(r.id), { method: 'PATCH', body: { status: '取込済', resv_id: id, handled_at: new Date().toISOString() } }); }
-  catch (e) { toast('台帳には入りましたが、受付箱の印が付きませんでした'); }
+  catch (e) { // 印が付かないと二重取込になるので、台帳に入れた分を取り消して終わる
+    await Store.put(MK('resv', ymOf(v.date)), id, null);
+    toast('通信が不安定で取り込めませんでした。台帳には入れていないので、もう一度お試しください');
+    WEBR.load(true); return;
+  }
   S.month = ymOf(v.date); S.cache = {};
   toast(`${v.name} 様のご予約を台帳に入れました`);
   WEBR.load(true);
@@ -925,11 +929,15 @@ function payCalc(staff, tm, adj) {
 // レシピ原価（1人前・税抜）
 function recipeCost(r) {
   const y = num(r.yield) || 1;
-  let c = 0; const allg = new Set(r.allergensExtra || []);
-  for (const ln of (r.lines || [])) { const it = itemById(ln.item); if (!it) continue; c += num(it.price) * num(ln.qty); (it.allergens || []).forEach(a => allg.add(a)); }
+  let c = 0, missing = 0; const allg = new Set(r.allergensExtra || []);
+  for (const ln of (r.lines || [])) {
+    const it = itemById(ln.item);
+    if (!it) { if (ln.item) missing++; continue; } // 食材マスタから消された材料（原価もアレルゲンも拾えない）
+    c += num(it.price) * num(ln.qty); (it.allergens || []).forEach(a => allg.add(a));
+  }
   const cost = c / y + num(r.extra);
   const net = num(r.price) / (r.takeout ? 1.08 : 1.1);
-  return { cost, rate: net > 0 ? cost / net : NaN, allergens: ALLERGENS.filter(a => allg.has(a)) };
+  return { cost, rate: net > 0 ? cost / net : NaN, allergens: ALLERGENS.filter(a => allg.has(a)), missing };
 }
 const otPill = ot => ot > 3600 ? '<span class="pill bad">60h超</span>' : ot > 2700 ? '<span class="pill warn">45h超</span>' : '';
 const rateCls = r => !isFinite(r) ? '' : r <= .30 ? 'ok' : r <= .38 ? 'warn' : 'bad';
@@ -956,7 +964,8 @@ const coinAutoAmt = cash => {
 function coinLines(ym, src) {
   src = src || { coin: L('coin', ym), daily: L('daily', ym) };
   const lines = src.coin.map(r => ({ date: r.date, desc: coinDesc(r), payee: r.payee || '', inAmt: coinIn(r), outAmt: coinOut(r), src: 'coin', rec: r }));
-  const hand = new Set(src.coin.filter(r => r.kind !== '両替').map(r => r.date)); // 同じ日に手入力があればそちらを優先
+  // 同じ日に手入力の「売上小銭」があればそちらを優先（銀行入金・両替はお金の動きが別なので対象外）
+  const hand = new Set(src.coin.filter(r => r.kind !== '銀行入金' && r.kind !== '両替').map(r => r.date));
   for (const d of src.daily) {
     if (hand.has(d.date)) continue;
     const a = coinAutoAmt(d.cash); if (!a) continue;
@@ -1235,7 +1244,14 @@ const tempsHTML = v => {
   if (!st.length) return '<span class="small muted">スタッフを登録すると、ここに体温の入力欄が出ます</span>';
   return `<div class="temps">${st.map(s2 => `<label class="tmp" for="tp_${esc(s2.id)}"><span>${esc(s2.name)}</span><input id="tp_${esc(s2.id)}" data-temp="${esc(s2.id)}" type="number" inputmode="decimal" step="0.1" min="34" max="42" value="${esc(t[s2.id] ?? '')}" placeholder="36.5"><small>℃</small></label>`).join('')}</div>`;
 };
-const readTemps = () => { const o = {}; for (const el of $$('[data-temp]')) if (el.value !== '') o[el.dataset.temp] = num(el.value); return o; };
+// 画面に出ている人の体温だけを読み、退職者など画面に出ない人の記録は消さずに残す
+const readTemps = (rec) => {
+  const o = {}; const shown = new Set();
+  for (const el of $$('[data-temp]')) { shown.add(el.dataset.temp); if (el.value !== '') o[el.dataset.temp] = num(el.value); }
+  const old = (rec && rec.hcTemps) || {};
+  for (const k in old) if (!shown.has(k)) o[k] = old[k];
+  return o;
+};
 /* 今日の発注（保存すると発注履歴に残る） */
 const doRow = (l, i) => `<div class="ln2" data-i="${esc(i)}">
   <div class="row" style="flex-wrap:nowrap;gap:6px">
@@ -1274,8 +1290,11 @@ A.dlAdd = () => { dailyLines.push({ supplier: '', amount: '', tax: 8, pay: '掛'
 A.dlDel = el => { dailyLines.splice(Number(el.dataset.i), 1); drawDL(); };
 CHG.dlSet = el => { const l = dailyLines[Number(el.dataset.i)]; if (!l) return; l[el.dataset.k] = el.dataset.k === 'amount' || el.dataset.k === 'tax' ? (el.value === '' ? '' : num(el.value)) : el.value; updDLTotal(); };
 const dailyPurch = (ym, date) => L('purch', ym).filter(p => p.src === 'daily' && p.date === date);
-function dailyForm(date) {
-  const ym = ymOf(date); const rec = Store.get(MK('daily', ym), date);
+async function dailyForm(date) {
+  const ym = ymOf(date);
+  // その月の仕入・発注を必ず読み込んでから開く（読み込み前だと「無い」と判断して消してしまうため）
+  await Promise.all([Store.fetch(MK('daily', ym)), Store.fetch(MK('purch', ym)), Store.fetch(MK('order', ym))]);
+  const rec = Store.get(MK('daily', ym), date);
   dailyLines = dailyPurch(ym, date).sort((a, b) => String(a.id).localeCompare(String(b.id)))
     .map(p => ({ id: p.id, supplier: p.supplier, amount: num(p.a8) + num(p.a10), tax: num(p.a10) ? 10 : 8, pay: p.pay || '掛', desc: p.desc || '', invoice: p.invoice, rc: p.rc }));
   if (!dailyLines.length) dailyLines = [{ supplier: '', amount: '', tax: 8, pay: '掛' }];
@@ -1301,7 +1320,7 @@ function dailyForm(date) {
       v.cash = (l === '' || l == null) && (d2 === '' || d2 == null) ? (rec ? num(rec.cash) : '') : num(l) + num(d2); // 現金売上の合計
       const gl = v.guestsLunch, gd = v.guestsDinner;
       v.guests = (gl === '' || gl == null) && (gd === '' || gd == null) ? (rec ? num(rec.guests) : '') : num(gl) + num(gd); // 客数の合計
-      v.hcTemps = readTemps(); // 出勤者の体温
+      v.hcTemps = readTemps(rec); // 出勤者の体温（画面に出ない人の分は残す）
       const newYM = ymOf(v.date); const oldKey = MK('purch', ym), newKey = MK('purch', newYM);
       if (rec && v.date !== date) await Store.put(MK('daily', ym), date, null);
       await Store.put(MK('daily', newYM), v.date, v);
@@ -1349,7 +1368,7 @@ A.dailyToday = () => dailyForm(today());
 A.dailyEdit = el => dailyForm(el.dataset.id);
 P.daily = {
   month: true,
-  keys: () => [MK('daily', S.month), MK('purch', S.month), MK('time', S.month), MK('pay', S.month), MK('exp', S.month), MK('cash', S.month), 'suppliers', 'staff'],
+  keys: () => [MK('daily', S.month), MK('purch', S.month), MK('order', S.month), MK('time', S.month), MK('pay', S.month), MK('exp', S.month), MK('cash', S.month), 'suppliers', 'staff'],
   render() {
     const recs = L('daily', S.month); const map = Object.fromEntries(recs.map(r => [r.date, r]));
     const purchByDay = groupBy(L('purch', S.month), p => p.date);
@@ -1959,9 +1978,12 @@ function timeForm(rec) {
   const v = rec ? { ...rec, b1s: b[0] ? b[0].s : null, b1e: b[0] ? b[0].e : null, b2s: b[1] ? b[1].s : null, b2e: b[1] ? b[1].e : null } : { date: today() };
   openForm({
     title: rec ? '勤怠を修正' : '勤怠を手入力', fields: F_TIME, value: v,
+    extra: b.length > 2 ? `<div class="note-box warn">この日は休憩が${b.length}回打刻されています。3回目以降（${esc(b.slice(2).map(x => m2hm(x.s) + '〜' + (x.e != null ? m2hm(x.e) : '')).join('、'))}）はこの画面には出ませんが、保存してもそのまま残ります。</div>` : '',
     onSave: async x => {
-      const breaks = [[x.b1s, x.b1e], [x.b2s, x.b2e]].filter(([s]) => s != null).map(([s, e]) => ({ s, e }));
-      const r = { date: x.date, staff: x.staff, in: x.in, out: x.out, breaks, note: x.note, edited: true, editedBy: S.me ? staffName(S.me) : '' };
+      // 3回目以降の休憩は画面に出ないので、打刻された分をそのまま残す
+      const breaks = [[x.b1s, x.b1e], [x.b2s, x.b2e]].filter(([s]) => s != null).map(([s, e]) => ({ s, e })).concat(((rec && rec.breaks) || []).slice(2));
+      const r = { ...(rec || {}), date: x.date, staff: x.staff, in: x.in, out: x.out, breaks, note: x.note, edited: true, editedBy: S.me ? staffName(S.me) : '' };
+      delete r.id;
       const id = rec ? rec.id : uid();
       if (rec && ymOf(rec.date) !== ymOf(x.date)) await Store.put(MK('time', ymOf(rec.date)), id, null);
       await Store.put(MK('time', ymOf(x.date)), id, r); toast('保存しました');
@@ -2129,6 +2151,20 @@ const F_STAFF = [
   { k: 'order', label: '表示順', type: 'num' }, { k: 'note', label: '備考', type: 'textarea' },
 ];
 const staffCrud = crud({ key: () => 'staff', fields: F_STAFF, title: 'スタッフ', defaults: { empType: 'アルバイト', payType: 'hour', commuteType: 'day' } });
+// 勤怠や給与が1件でもある人を消すと、賃金台帳・出勤簿・年間集計からその人が丸ごと抜けてしまうので止める
+async function staffUsed(id) {
+  try { return (await SB.rows('select=bucket&deleted=eq.false&limit=1&data->>staff=eq.' + encodeURIComponent(id))).length > 0; }
+  catch (e) { return true; } // 確かめられないときは消さない（安全側）
+}
+staffCrud.edit = rec => openForm({
+  title: 'スタッフを編集', fields: F_STAFF, value: rec,
+  onSave: async v => { const id = v.id; delete v.id; await Store.put('staff', id, v); toast('保存しました'); },
+  onDelete: async () => {
+    if (await staffUsed(rec.id)) { toast('この人には勤怠や給与の記録があるので削除できません。辞めた場合は「退職年月日」を入れてください'); return; }
+    if (!confirmDel()) return;
+    await Store.put('staff', rec.id, null); closeModal(); toast('削除しました');
+  },
+});
 A.staffAdd = () => staffCrud.add();
 A.staffEdit = el => staffCrud.edit(Store.get('staff', el.dataset.id));
 P.staff = {
@@ -2422,8 +2458,9 @@ P.recipes = {
     const avg = list.length ? sum(list, x => isFinite(x.c.rate) ? x.c.rate : 0) / list.filter(x => isFinite(x.c.rate)).length : NaN;
     const byCat = groupBy(list, x => x.r.cat || '未分類');
     return `<div class="stats">${stat('メニュー数', list.length)}${stat('平均原価率', pct(avg), '目安：飲食店全体で30%前後')}${stat('原価率38%超', list.filter(x => x.c.rate > .38).length + '品')}</div>
+    ${list.some(x => x.c.missing) ? `<div class="note-box warn">材料が食材マスタに見つからないレシピが <b>${list.filter(x => x.c.missing).length}品</b> あります。その材料ぶんの原価とアレルゲンが抜けた状態で計算されているので、レシピを開いて材料を選び直してください。</div>` : ''}
     <div class="toolbar"><button class="btn primary" data-act="recipeAdd">＋ レシピを追加</button><span class="sp"></span><button class="btn" data-act="recipeCSV">原価表CSV</button><button class="btn" data-act="recipePrint">A4の印刷用に保存</button></div>
-    ${list.length ? Object.keys(byCat).map(cat => `<section class="sec"><h3>${esc(cat)}</h3><div class="tw"><table class="tbl"><thead><tr><th>メニュー</th><th class="n">売価（税込）</th><th class="n">原価（1人前）</th><th class="n">原価率</th><th class="n">粗利</th><th>アレルゲン</th><th>表示</th></tr></thead><tbody>${byCat[cat].map(({ r, c }) => `<tr class="click" data-act="recipeEdit" data-id="${esc(r.id)}"><td><b>${esc(r.name)}</b></td><td class="n">${yen(r.price)}</td><td class="n">${yen(c.cost)}</td><td class="n"><span class="pill ${rateCls(c.rate)}">${pct(c.rate)}</span></td><td class="n">${yen(num(r.price) / (r.takeout ? 1.08 : 1.1) - c.cost)}</td><td class="wrap small">${c.allergens.map(a => `<span class="pill${ALLERGEN_REQ.includes(a) ? ' bad' : ''}">${esc(a)}</span>`).join(' ')}</td><td>${r.onMenu ? '<span class="pill acc">掲載</span>' : ''}</td></tr>`).join('')}</tbody></table></div></section>`).join('')
+    ${list.length ? Object.keys(byCat).map(cat => `<section class="sec"><h3>${esc(cat)}</h3><div class="tw"><table class="tbl"><thead><tr><th>メニュー</th><th class="n">売価（税込）</th><th class="n">原価（1人前）</th><th class="n">原価率</th><th class="n">粗利</th><th>アレルゲン</th><th>表示</th></tr></thead><tbody>${byCat[cat].map(({ r, c }) => `<tr class="click" data-act="recipeEdit" data-id="${esc(r.id)}"><td><b>${esc(r.name)}</b>${c.missing ? ` <span class="pill bad">材料${c.missing}件が食材マスタにありません</span>` : ''}</td><td class="n">${yen(r.price)}</td><td class="n">${yen(c.cost)}</td><td class="n"><span class="pill ${rateCls(c.rate)}">${pct(c.rate)}</span></td><td class="n">${yen(num(r.price) / (r.takeout ? 1.08 : 1.1) - c.cost)}</td><td class="wrap small">${c.allergens.map(a => `<span class="pill${ALLERGEN_REQ.includes(a) ? ' bad' : ''}">${esc(a)}</span>`).join(' ')}</td><td>${r.onMenu ? '<span class="pill acc">掲載</span>' : ''}</td></tr>`).join('')}</tbody></table></div></section>`).join('')
         : emptyBox('レシピがありません', '材料と分量を入れると、原価と原価率が自動で出ます', '<button class="btn primary" data-act="recipeAdd">＋ レシピを追加</button>')}
     <p class="hint">原価率＝1人前原価 ÷ 税抜売価。食材単価を更新すると全メニューの原価が自動で変わります。</p>`;
   }
