@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-DqtogteweVLAD7dXb07yC0fgjjv4aLPITQ31JKzNDgI='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data: blob: https://tzmptqweehooidklvhpv.supabase.co; object-src https://tzmptqweehooidklvhpv.supabase.co; base-uri 'none'; form-action 'none'; manifest-src 'self'"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="のどぐろ家姫川"><meta name="theme-color" content="#23467A"></head><body>
+<html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-Qkbo+hJvZ0ci82xm4wXvRSdWrXQEwlkML6uD0Bp82YY='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data: blob: https://tzmptqweehooidklvhpv.supabase.co; object-src https://tzmptqweehooidklvhpv.supabase.co; base-uri 'none'; form-action 'none'; manifest-src 'self'"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="のどぐろ家姫川"><meta name="theme-color" content="#23467A"></head><body>
 <title>のどぐろ家姫川</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -224,6 +224,12 @@ table.tbl{border-collapse:collapse;width:100%;font-size:14px}
 .lines .ln2{display:grid;gap:6px;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--surface)}
 .lines .ln2 select,.lines .ln2 input,.lines .ln2 textarea{padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:var(--surface);min-height:38px;width:100%;font-size:15px}
 .lines .ln2 textarea{resize:vertical;line-height:1.5}
+.lines .cp,.lines .fav{display:grid;gap:8px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--surface)}
+.lines .cp{grid-template-columns:20px minmax(0,1fr) 140px 104px}
+.lines .fav{grid-template-columns:minmax(0,1fr) auto auto}
+.lines .cp input[type=date],.lines .cp input[type=number]{padding:6px 8px;border:1px solid var(--line);border-radius:7px;background:var(--surface);min-height:36px;width:100%;font-variant-numeric:tabular-nums}
+.lines .cp input[type=number]{text-align:right}
+.lines .cp.off{opacity:.45}
 .lines .ln{display:grid;grid-template-columns:minmax(0,1fr) 90px 60px 90px 34px;gap:6px;align-items:center}
 .lines .ln input,.lines .ln select{padding:6px 8px;border:1px solid var(--line);border-radius:7px;background:var(--surface);min-height:36px;width:100%}
 .lines .ln .n{text-align:right;font-variant-numeric:tabular-nums;font-size:13px}
@@ -256,6 +262,9 @@ table.tbl{border-collapse:collapse;width:100%;font-size:14px}
 .lines .ln2 select,.lines .ln2 input,.lines .ln2 textarea{padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:var(--surface);min-height:38px;width:100%;font-size:15px}
 .lines .ln2 textarea{resize:vertical;line-height:1.5}
 .lines .ln{grid-template-columns:minmax(0,1fr) 70px 70px 30px}
+.lines .cp{grid-template-columns:20px minmax(0,1fr);row-gap:6px}
+.lines .cp input[type=date],.lines .cp input[type=number]{grid-column:2}
+.lines .fav{grid-template-columns:minmax(0,1fr) auto;row-gap:8px}
   .lines .ln .u{display:none}
   .today .d{font-size:24px}
 }
@@ -340,10 +349,20 @@ const Store = {
     for (const row of rows) { if (row.deleted || row.data == null) delete r[row.id]; else r[row.id] = row.data; if (!this.lastTs || row.updated_at > this.lastTs) this.lastTs = row.updated_at; }
     this.data[key] = { exists: true, r, ready: true };
   },
+  // 読み込み中にこの端末で保存した分（返事待ち）を、読み込み結果で消さないように戻す
+  pending: {},
+  applyPending(key) {
+    const now = this.lastTs || new Date().toISOString();
+    const rows = Object.keys(this.pending).filter(k => this.pending[k].bucket === key)
+      .map(k => ({ id: this.pending[k].id, data: this.pending[k].data, deleted: !this.pending[k].data, updated_at: now }));
+    if (rows.length) this.apply(key, rows);
+  },
   async load(key) {
     try {
       const rows = await SB.rows('select=id,data,deleted,updated_at&bucket=eq.' + encodeURIComponent(key));
-      this.data[key] = { exists: true, r: {}, ready: true }; this.apply(key, rows); this.emit();
+      // この端末で保存した分を消さないよう、読み込み結果は上書きではなく重ねる（他の端末での削除は deleted の行で届く）
+      this.data[key] = { exists: true, r: { ...((this.data[key] || {}).r || {}) }, ready: true };
+      this.apply(key, rows); this.applyPending(key); this.emit();
     } catch (e) { this.data[key] = { ...(this.data[key] || { r: {} }), ready: true, error: e.message }; toast('読み込みに失敗しました：' + e.message); this.emit(); }
   },
   ensure(key) {
@@ -357,7 +376,7 @@ const Store = {
   get(key, id) { this.ensure(key); const r = this.data[key] && this.data[key].r; return r && r[id] ? { ...r[id], id } : null; },
   async fetch(key) {
     if (this.data[key] && this.data[key].ready) return this.listRaw(key);
-    try { const rows = await SB.rows('select=id,data,deleted,updated_at&bucket=eq.' + encodeURIComponent(key)); this.data[key] = { exists: true, r: {}, ready: true, once: !this.subs[key] }; this.apply(key, rows); if (!this.subs[key]) this.data[key].once = true; }
+    try { const rows = await SB.rows('select=id,data,deleted,updated_at&bucket=eq.' + encodeURIComponent(key)); this.data[key] = { exists: true, r: { ...((this.data[key] || {}).r || {}) }, ready: true, once: !this.subs[key] }; this.apply(key, rows); this.applyPending(key); if (!this.subs[key]) this.data[key].once = true; }
     catch (e) { return []; }
     return this.listRaw(key);
   },
@@ -385,6 +404,8 @@ const Store = {
     const d = this.data[key];
     d.r = { ...d.r, [id]: clean }; if (!clean) delete d.r[id];
     this.emit();
+    const pk = key + '\u0000' + id;
+    this.pending[pk] = { bucket: key, id, data: clean };
     try {
       const res = await SB.req('/rest/v1/records?on_conflict=bucket,id', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=representation' }, body: [{ bucket: key, id, data: clean, deleted: !clean }] });
       if (res && res[0]) {
@@ -395,6 +416,7 @@ const Store = {
       }
       return true;
     } catch (e) { toast('保存できませんでした：' + e.message); this.load(key); return false; }
+    finally { delete this.pending[pk]; }
   },
   async allKeys() {
     const rows = await SB.rows('select=bucket,id,data,deleted&deleted=eq.false');
@@ -2503,7 +2525,7 @@ const cashCrud = crud({ key: v => MK('cash', ymOf(v.date)), fields: F_CASH, titl
 A.cashAdd = (el) => cashCrud.add({ date: today(), kind: el && el.dataset && el.dataset.k === 'in' ? '入金' : '出金' });
 P.cash = {
   month: true,
-  keys: () => [MK('cash', S.month), MK('exp', S.month), MK('purch', S.month), MK('close', S.month)],
+  keys: () => [MK('cash', S.month), MK('exp', S.month), MK('purch', S.month), MK('close', S.month), MK('cash', addMonth(S.month, -1)), 'fav', 'suppliers'],
   render() {
     const ck = 'carry_' + S.month;
     if (S.cache[ck] === undefined) { S.cache[ck] = null; cashCarry(S.month).then(v => { S.cache[ck] = v; render(); }); }
@@ -2513,7 +2535,7 @@ P.cash = {
     const tin = sum(lines, l => l.inAmt), tout = sum(lines, l => l.outAmt);
     return `<div class="stats">${stat('前月繰越', carry == null ? '計算中…' : yen(carry))}${stat('入金', yen(tin))}${stat('出金', yen(tout))}${stat('現在残高', carry == null ? '…' : yen(num(carry) + tin - tout), '手元の小口現金と一致するか確認')}</div>
     ${closeBar('cash', S.month)}
-    <div class="toolbar"><button class="btn primary" data-act="cashAdd">＋ 出金（支払）</button><button class="btn" data-act="cashAdd" data-k="in">＋ 入金（補充）</button><span class="sp"></span><button class="btn" data-act="cashCSV">出納帳CSV</button><button class="btn" data-act="cashPrint">A4の印刷用に保存</button></div>
+    <div class="toolbar"><button class="btn primary" data-act="cashAdd">＋ 出金（支払）</button><button class="btn" data-act="cashAdd" data-k="in">＋ 入金（補充）</button><button class="btn" data-act="favPick" data-use="cash">ひな形から入力</button><button class="btn" data-act="copyPrev" data-k="cash">前月を複製</button><span class="sp"></span><button class="btn" data-act="cashCSV">出納帳CSV</button><button class="btn" data-act="cashPrint">A4の印刷用に保存</button></div>
     ${lines.length ? `<div class="tw"><table class="tbl"><thead><tr><th>日付</th><th>摘要</th><th>勘定科目</th><th class="n">入金</th><th class="n">出金</th><th class="n">残高</th><th></th></tr></thead><tbody><tr class="dim"><td>${dLabel(S.month + '-01')}</td><td>前月より繰越</td><td></td><td></td><td></td><td class="n">${yen(carry)}</td><td></td></tr>${rows}</tbody><tfoot><tr><td colspan="3">合計</td><td class="n">${yen(tin)}</td><td class="n">${yen(tout)}</td><td class="n">${carry == null ? '' : yen(num(carry) + tin - tout)}</td><td></td></tr></tfoot></table></div>`
         : emptyBox(ymLabel(S.month) + 'の記帳はまだありません', '買い出しや備品の購入など、小口現金から支払ったものを記帳します', '<button class="btn primary" data-act="cashAdd">＋ 出金（支払）</button>')}
     <p class="hint">経費帳・仕入帳で支払方法を「小口現金」にした取引も自動でここに載ります（二重に入力しないでください）。</p>`;
@@ -2623,11 +2645,11 @@ function expLines(ym, src) {
 }
 P.exp = {
   month: true,
-  keys: () => [MK('exp', S.month), MK('cash', S.month)],
+  keys: () => [MK('exp', S.month), MK('cash', S.month), MK('exp', addMonth(S.month, -1)), 'fav', 'suppliers'],
   render() {
     const list = expLines(S.month); const byA = groupBy(list, e => e.account || '雑費');
     return `<div class="stats">${stat('経費合計（事業分）', yen(sum(list, e => e.biz)), list.length + '件')}${Object.keys(byA).sort((a, b) => sum(byA[b], e => e.biz) - sum(byA[a], e => e.biz)).slice(0, 3).map(k => stat(k, yen(sum(byA[k], e => e.biz)))).join('')}</div>
-    <div class="toolbar"><button class="btn primary" data-act="expAdd">＋ 経費を記帳</button><span class="sp"></span><button class="btn" data-act="expCSV">経費帳CSV</button><button class="btn" data-act="expPrint">A4の印刷用に保存</button></div>
+    <div class="toolbar"><button class="btn primary" data-act="expAdd">＋ 経費を記帳</button><button class="btn" data-act="favPick" data-use="exp">ひな形から入力</button><button class="btn" data-act="copyPrev" data-k="exp">前月を複製</button><span class="sp"></span><button class="btn" data-act="expCSV">経費帳CSV</button><button class="btn" data-act="expPrint">A4の印刷用に保存</button></div>
     ${list.length ? `<div class="tw"><table class="tbl"><thead><tr><th>日付</th><th>支払先・摘要</th><th>勘定科目</th><th class="n">金額</th><th class="n">事業分</th><th>税率</th><th>支払方法</th><th>インボイス</th><th></th></tr></thead><tbody>${list.map(e => `<tr class="click" data-act="expEdit" data-src="${esc(e.src)}" data-id="${esc(e.id)}"><td>${dLabel(e.date)}</td><td class="wrap">${esc(e.payee || '')}${e.note ? ` <span class="small muted">${esc(e.note)}</span>` : ''}${e.src === 'cash' ? ' <span class="pill">小口から</span>' : ''}</td><td>${esc(e.account || '')}</td><td class="n">${yen(e.amount)}</td><td class="n">${yen(e.biz)}</td><td>${esc(TAXLABEL[num(e.tax)] || '')}</td><td>${esc(e.pay || '')}</td><td>${e.invoice ? '<span class="pill ok">あり</span>' : ''}</td><td>${receiptLink(e)}</td></tr>`).join('')}</tbody></table></div>
     <section class="sec" style="margin-top:22px"><h3>勘定科目別</h3><div class="tw"><table class="tbl"><thead><tr><th>勘定科目</th><th class="n">件数</th><th class="n">事業分合計</th></tr></thead><tbody>${Object.keys(byA).map(k => `<tr><td>${esc(k)}</td><td class="n">${byA[k].length}</td><td class="n">${yen(sum(byA[k], e => e.biz))}</td></tr>`).join('')}</tbody></table></div></section>`
         : emptyBox(ymLabel(S.month) + 'の経費はまだありません', '家賃・水道光熱費・通信費・消耗品など、仕入以外の支払を記帳します', '<button class="btn primary" data-act="expAdd">＋ 経費を記帳</button>')}
@@ -2637,6 +2659,96 @@ P.exp = {
 const expRows = () => { const list = expLines(S.month); return [['日付', '支払先・摘要', '勘定科目', '金額(税込)', '事業分', '税率', '支払方法', '適格請求書', 'メモ'], ...list.map(e => [e.date, e.payee, e.account, num(e.amount), e.biz, TAXLABEL[num(e.tax)] || '', e.pay, e.invoice ? '○' : '', e.note || '']), ['合計', '', '', sum(list, e => e.amount), sum(list, e => e.biz), '', '', '', '']]; };
 A.expCSV = () => saveFile(`経費帳_${S.month}.csv`, toCSV(expRows()));
 A.expPrint = () => printTable(`経費帳_${S.month}.html`, `経費帳　${ymLabel(S.month)}`, expRows(), { foot: true, fs: '8.2pt', n: [3, 4], note: '「事業分」は家事按分の割合をかけたあとの、経費にできる金額です。小口現金から払ったものも含みます。' });
+
+/* ---------- 毎月の入力を楽にする（前月の複製／よく使う入力） ---------- */
+// 前月の同じ日を今月に置きかえる（31日→30日など、ない日は月末に寄せる）
+const sameDayOf = (ym, d) => `${ym}-${pad(Math.min(Number(String(d).slice(8, 10)) || 1, Number(lastDay(ym).slice(8, 10))))}`;
+const CP_TITLE = { exp: '経費帳', cash: '小口現金出納帳' };
+let cpRows = [], cpKind = 'exp';
+const cpLabel = r => r.payee || r.desc || '（摘要なし）';
+const cpRow = (r, i) => `<div class="cp${r._on ? '' : ' off'}">
+  <input type="checkbox" data-chg="cpOn" data-i="${esc(i)}"${r._on ? ' checked' : ''} aria-label="複製する">
+  <span class="small"><b>${esc(cpLabel(r))}</b><br><span class="muted">${esc([r.account, cpKind === 'cash' ? r.kind : r.pay, r.note].filter(Boolean).join('　'))}</span></span>
+  <input type="date" value="${esc(r._date)}" data-inp="cpDate" data-i="${esc(i)}" aria-label="日付">
+  <input type="number" inputmode="numeric" value="${esc(r._amount)}" data-inp="cpAmt" data-i="${esc(i)}" aria-label="金額">
+</div>`;
+function redrawCp() { const box = $('#cpList'); if (box) box.innerHTML = cpRows.map(cpRow).join(''); updCpTotal(); }
+function updCpTotal() {
+  const el = $('#cpTotal'); if (!el) return;
+  const on = cpRows.filter(r => r._on);
+  el.innerHTML = on.length ? `${on.length}件・合計 <b>${yen(sum(on, r => num(r._amount)))}</b>` : '<span class="muted">チェックが入っていません</span>';
+}
+CHG.cpOn = el => { const r = cpRows[Number(el.dataset.i)]; if (!r) return; r._on = el.checked; const box = el.closest('.cp'); box && box.classList.toggle('off', !r._on); updCpTotal(); };
+CHG.cpDate = el => { const r = cpRows[Number(el.dataset.i)]; if (r) r._date = el.value; };
+CHG.cpAmt = el => { const r = cpRows[Number(el.dataset.i)]; if (r) { r._amount = el.value === '' ? '' : num(el.value); updCpTotal(); } };
+A.cpAll = () => { for (const r of cpRows) r._on = true; redrawCp(); };
+A.cpNone = () => { for (const r of cpRows) r._on = false; redrawCp(); };
+A.copyPrev = el => {
+  const kind = el && el.dataset && el.dataset.k === 'cash' ? 'cash' : 'exp';
+  const prev = addMonth(S.month, -1);
+  const src = L(kind, prev).sort(byDate).filter(r => num(r.amount));
+  if (!src.length) { toast(`${ymLabel(prev)}の${CP_TITLE[kind]}に記帳がありません`); return; }
+  cpKind = kind;
+  cpRows = src.map(r => ({ ...r, _on: false, _date: sameDayOf(S.month, r.date), _amount: num(r.amount) }));
+  openForm({
+    title: `${ymLabel(prev)}から${ymLabel(S.month)}へ複製`, fields: [], value: {}, wide: true, saveLabel: 'チェックした分を登録',
+    extra: `<div class="note-box">毎月くり返す支払（家賃・水道光熱費・通信費・リース代など）にチェックを入れて、日付と金額を今月の分に直してから登録してください。レシート画像は複製されません。</div>
+      <div class="lines" id="cpList">${cpRows.map(cpRow).join('')}</div>
+      <div class="row" style="margin-top:10px"><button type="button" class="btn sm" data-act="cpAll">すべて選ぶ</button><button type="button" class="btn sm" data-act="cpNone">すべて外す</button><span class="sp"></span><span class="small" id="cpTotal"></span></div>`,
+    onSave: async () => {
+      const on = cpRows.filter(r => r._on);
+      if (!on.length) { toast('複製するものにチェックを入れてください'); return false; }
+      let n = 0;
+      for (const r of on) {
+        if (!num(r._amount)) continue;
+        const v = { ...r }; for (const k of ['id', 'rc', 'paid', 'checked', '_on', '_date', '_amount']) delete v[k];
+        v.date = r._date; v.amount = num(r._amount);
+        await Store.put(MK(kind, ymOf(v.date)), uid(), v); n++;
+      }
+      S.cache = {};
+      toast(`${n}件を${CP_TITLE[kind]}（${ymLabel(S.month)}）に登録しました`);
+    },
+  });
+  updCpTotal();
+};
+// よく使う入力（ひな形）
+const FAV_USES = ['経費帳', '小口現金出納帳'];
+const F_FAV = [
+  { k: 'use', label: 'どの帳面で使う', type: 'select', opts: FAV_USES, def: '経費帳', req: true },
+  { k: 'name', label: 'ひな形の名前', req: true, full: true, ph: '例：店舗家賃／電気代／ゴミ袋・洗剤' },
+  { k: 'payee', label: '支払先・摘要', req: true, full: true, list: () => suppliers().map(s => s.name) },
+  { k: 'account', label: '勘定科目', type: 'select', opts: ALL_ACCOUNTS, def: '消耗品費' },
+  { k: 'amount', label: '金額（決まっていれば）', type: 'money', hint: '毎回ちがう場合は空欄に。呼び出したときに入力します' },
+  { k: 'tax', label: '税率', type: 'select', opts: [{ v: 10, l: '10%' }, { v: 8, l: '8%（軽減）' }, { v: 0, l: '対象外・非課税' }], def: 10 },
+  { k: 'pay', label: '支払方法（経費帳のとき）', type: 'select', opts: ['カード', '振込/口座', '事業主借', '小口現金'], def: '振込/口座' },
+  { k: 'ratio', label: '事業割合（%・経費帳のとき）', type: 'num', hint: '家事按分する場合（空欄＝100%）' },
+  { k: 'note', label: 'メモ', full: true },
+];
+const favCrud = crud({ key: () => 'fav', fields: F_FAV, title: 'ひな形' });
+const favList = use => Store.list('fav').filter(f => (f.use || '経費帳') === use).sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'ja'));
+A.favPick = el => {
+  const use = el && el.dataset && el.dataset.use === 'cash' ? FAV_USES[1] : FAV_USES[0];
+  const list = favList(use);
+  openForm({
+    title: `${use}のよく使う入力`, fields: [], value: {}, saveLabel: '閉じる', onSave: async () => { },
+    extra: `<div class="note-box">「これで入力」を押すと、支払先・勘定科目・税率が入った状態で入力画面が開きます。日付と金額だけ直して保存してください。</div>
+      <div class="lines">${list.length ? list.map(f => `<div class="fav">
+        <span class="small"><b>${esc(f.name || '')}</b><br><span class="muted">${esc([f.payee, f.account, num(f.amount) ? int(num(f.amount)) + '円' : '金額は毎回入力', use === FAV_USES[0] ? f.pay : ''].filter(Boolean).join('　'))}</span></span>
+        <button type="button" class="btn sm primary" data-act="favUse" data-id="${esc(f.id)}">これで入力</button>
+        <button type="button" class="btn sm" data-act="favEdit" data-id="${esc(f.id)}">編集</button></div>`).join('')
+        : '<p class="muted small" style="margin:0">まだひな形がありません。毎月くり返す支払を登録しておくと、次の月から金額を入れるだけで済みます。</p>'}</div>
+      <div class="row" style="margin-top:12px"><button type="button" class="btn" data-act="favAdd" data-use="${esc(use)}">＋ ひな形を追加</button></div>`,
+  });
+};
+A.favAdd = el => favCrud.add({ use: (el && el.dataset && el.dataset.use) || FAV_USES[0] });
+A.favEdit = el => { const f = Store.get('fav', el.dataset.id); f && favCrud.edit(f); };
+A.favUse = el => {
+  const f = Store.get('fav', el.dataset.id); if (!f) return;
+  const tax = f.tax === '' || f.tax == null ? 10 : num(f.tax);
+  const amount = num(f.amount) ? num(f.amount) : '';
+  if ((f.use || FAV_USES[0]) === FAV_USES[1]) cashCrud.add({ date: today(), kind: '出金', desc: f.payee || f.name || '', account: f.account || '消耗品費', tax, amount, counter: '事業主借' });
+  else expCrud.add({ date: today(), payee: f.payee || f.name || '', account: f.account || '消耗品費', amount, tax, pay: f.pay || '振込/口座', ratio: f.ratio ?? '', note: f.note || '' });
+};
 
 /* ---------- 売掛・買掛 ---------- */
 const F_DEP = [
