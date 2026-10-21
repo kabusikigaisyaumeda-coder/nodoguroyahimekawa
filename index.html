@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-8GwR52IUUn3Ea4ETGYRORM/W7oOf/bmecHNbsAdHWoA='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data: blob: https://tzmptqweehooidklvhpv.supabase.co; object-src https://tzmptqweehooidklvhpv.supabase.co; base-uri 'none'; form-action 'none'; manifest-src 'self'"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="のどぐろ家姫川"><meta name="theme-color" content="#23467A"></head><body>
+<html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-DNTsIzeK+6Hgi4ePrBqtV001EwI8h+trF3UMQfAzsiQ='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data: blob: https://tzmptqweehooidklvhpv.supabase.co; object-src https://tzmptqweehooidklvhpv.supabase.co; base-uri 'none'; form-action 'none'; manifest-src 'self'"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="のどぐろ家姫川"><meta name="theme-color" content="#23467A"></head><body>
 <title>のどぐろ家姫川</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -943,6 +943,37 @@ const otPill = ot => ot > 3600 ? '<span class="pill bad">60h超</span>' : ot > 2
 const rateCls = r => !isFinite(r) ? '' : r <= .30 ? 'ok' : r <= .38 ? 'warn' : 'bad';
 // 日報の売上合計
 const dailyTotal = d => num(d.cash) + num(d.card) + num(d.qr) + num(d.other);
+// その日の時給スタッフ（アルバイト・パート）の人件費。打刻から計算する概算
+function dayLabor(date, recs) {
+  const set = SET();
+  const list = (recs || L('time', ymOf(date))).filter(t => t.date === date && t.in != null);
+  const rows = []; let open = 0;
+  for (const t of list) {
+    const s = Store.get('staff', t.staff);
+    if (!s || s.payType === 'month') continue;        // 月給の社員はその日に割り振れないので外す
+    const c = timeCalc(t);
+    if (!c || c.open) { open++; continue; }           // 退勤の打刻待ち
+    const hourly = num(s.rate);
+    const base = Math.round(hourly * c.work / 60);
+    const otPrem = Math.round(hourly * 0.25 * c.ot / 60);                                  // 1日8時間超
+    const nightPrem = set.nightPay === false ? 0 : Math.round(hourly * 0.25 * c.night / 60); // 22時〜5時
+    const commute = s.commuteType === 'month' ? 0 : num(s.commute);
+    rows.push({ name: s.name, work: c.work, night: c.night, ot: c.ot, hourly, base, otPrem, nightPrem, commute, total: base + otPrem + nightPrem + commute });
+  }
+  rows.sort((a, b) => b.total - a.total);
+  return { rows, open, total: sum(rows, r => r.total), work: sum(rows, r => r.work) };
+}
+// 昼と夜の売上・客単価。キャッシュレスの昼分が未入力なら現金の比率で按分した概算になる
+function daySplit(r) {
+  const cl = num(r.cashLunch), cd = num(r.cashDinner), cless = num(r.card) + num(r.qr) + num(r.other);
+  const hasL = r.clessLunch !== '' && r.clessLunch != null;
+  const ratio = cl + cd > 0 ? cl / (cl + cd) : .5;
+  const kl = hasL ? Math.max(0, Math.min(num(r.clessLunch), cless)) : Math.round(cless * ratio);
+  const lunch = cl + kl, dinner = cd + (cless - kl);
+  const gl = num(r.guestsLunch), gd = num(r.guestsDinner);
+  return { lunch, dinner, gl, gd, est: !hasL && cless > 0, split: (r.cashLunch !== '' && r.cashLunch != null) || (r.cashDinner !== '' && r.cashDinner != null) || gl || gd,
+    ul: gl > 0 ? lunch / gl : NaN, ud: gd > 0 ? dinner / gd : NaN };
+}
 // 小口現金出納帳の明細（その月）
 function cashLines(ym, src) {
   src = src || { cash: L('cash', ym), exp: L('exp', ym), purch: L('purch', ym) };
@@ -1136,6 +1167,7 @@ const F_DAILY = [
   { k: 'card', label: 'カード売上', type: 'money', hint: 'PAYGATEのクレジット等' },
   { k: 'qr', label: 'QR・電子マネー', type: 'money' },
   { k: 'other', label: 'その他（掛売・食券等）', type: 'money' },
+  { k: 'clessLunch', label: 'うちキャッシュレスのランチ分', type: 'money', hint: '昼と夜の客単価を正しく出すための欄。空欄なら現金の比率で按分した概算になります' },
   { k: 'takeout', label: 'うちテイクアウト（8%）', type: 'money', hint: '売上合計のうち軽減税率分' },
   { k: 'guestsLunch', label: '客数（ランチ・人）', type: 'num' },
   { k: 'guestsDinner', label: '客数（ディナー・人）', type: 'num' },
@@ -1183,6 +1215,18 @@ function dailyMailText(v, lines, orders) {
     t += `（ランチ ${int(num(v.guestsLunch))}人／ディナー ${int(num(v.guestsDinner))}人）`;
   t += (v.groups !== '' && v.groups != null ? `　${int(num(v.groups))}組` : '') + '\n';
   if (tot > 0 && num(v.guests) > 0) t += `客単価：${int(Math.round(tot / num(v.guests)))}円\n`;
+  const sp = daySplit(v);
+  if (isFinite(sp.ul) || isFinite(sp.ud)) {
+    t += `　ランチ：売上 ${int(sp.lunch)}円 ÷ ${int(sp.gl)}人 ＝ ${isFinite(sp.ul) ? int(Math.round(sp.ul)) + '円' : '—'}\n`;
+    t += `　ディナー：売上 ${int(sp.dinner)}円 ÷ ${int(sp.gd)}人 ＝ ${isFinite(sp.ud) ? int(Math.round(sp.ud)) + '円' : '—'}\n`;
+    if (sp.est) t += `　※キャッシュレスは現金の比率で昼夜に按分した概算です\n`;
+  }
+  const lab = dayLabor(v.date);
+  if (lab.rows.length) {
+    t += `\n■ 本日の人件費（時給の人）　${int(lab.total)}円${tot > 0 ? `　人件費率 ${(lab.total / tot * 100).toFixed(1)}%` : ''}\n`;
+    t += lab.rows.map(r => `　・${r.name}　実働${hrs(r.work)}h　${int(r.total)}円\n`).join('');
+    if (lab.open) t += `　※退勤の打刻がまだの人が${lab.open}名います\n`;
+  }
   t += `\n■ 本日の仕入　合計 ${int(sum(pur, l => num(l.amount)))}円\n`;
   t += pur.length ? pur.map(l => `　・${supName(l.supplier)}　${int(num(l.amount))}円（${num(l.tax) === 10 ? '10%' : '8%'}・${l.pay || '掛'}）\n`).join('') : '　なし\n';
   t += `\n■ 本日の発注\n`;
@@ -1363,6 +1407,9 @@ async function dailyForm(date) {
     } : null,
   });
   drawDL(); drawDO();
+  // 売上を打つたびに人件費率を出し直す
+  for (const k of ['cashLunch', 'cashDinner', 'card', 'qr', 'other']) { const el = $('#f_' + k); el && el.addEventListener('input', () => updDLaborRate(date)); }
+  updDLaborRate(date);
 }
 A.dailyToday = () => dailyForm(today());
 A.dailyEdit = el => dailyForm(el.dataset.id);
@@ -1373,29 +1420,36 @@ P.daily = {
     const recs = L('daily', S.month); const map = Object.fromEntries(recs.map(r => [r.date, r]));
     const purchByDay = groupBy(L('purch', S.month), p => p.date);
     const pDay = d => sum(purchByDay[d] || [], p => num(p.a8) + num(p.a10));
+    const timeRecs = L('time', S.month);
+    const labByDay = Object.fromEntries(monthDays(S.month).map(d => [d, dayLabor(d, timeRecs).total]));
+    const labTotal = sum(Object.values(labByDay), x => x);
     const tot = sum(recs, dailyTotal); const g = sum(recs, r => r.guests);
     const rows = monthDays(S.month).map(d => {
       const r = map[d]; const w = dowN(d); const cls = w === 0 ? 'sun' : w === 6 ? 'sat' : '';
-      if (!r) return `<tr class="click dim ${cls}" data-act="dailyEdit" data-id="${esc(d)}"><td>${dLabel(d)}</td><td colspan="11" class="muted small">未記入（タップして記入）</td></tr>`;
-      const t = dailyTotal(r);
-      return `<tr class="click ${cls}" data-act="dailyEdit" data-id="${esc(d)}"><td>${dLabel(d)}</td><td>${esc(r.weather || '')}</td><td class="n"><b>${yen(t)}</b></td><td class="n">${int(r.guests)}${(r.guestsLunch !== '' && r.guestsLunch != null) || (r.guestsDinner !== '' && r.guestsDinner != null) ? `<br><span class="small muted">昼${int(r.guestsLunch)}/夜${int(r.guestsDinner)}</span>` : ''}</td><td class="n">${num(r.guests) ? yen(t / num(r.guests)) : '—'}</td><td class="n">${r.cashLunch !== '' && r.cashLunch != null ? yen(r.cashLunch) : ''}</td><td class="n">${r.cashDinner !== '' && r.cashDinner != null ? yen(r.cashDinner) : (r.cashLunch === '' || r.cashLunch == null ? yen(r.cash) : '')}</td><td class="n">${yen(num(r.card) + num(r.qr) + num(r.other))}</td><td class="n">${pDay(r.date) ? yen(pDay(r.date)) : ''}</td><td>${haccp(r).pill}${tempList(r).length ? `<br><span class="small muted">体温${tempList(r).length}名</span>` : ''}</td><td class="wrap small">${esc(r.note || '')}</td><td class="small muted">${esc(r.by || '')}</td></tr>`;
+      if (!r) return `<tr class="click dim ${cls}" data-act="dailyEdit" data-id="${esc(d)}"><td>${dLabel(d)}</td><td colspan="12" class="muted small">未記入（タップして記入）</td></tr>`;
+      const t = dailyTotal(r); const sp = daySplit(r);
+      return `<tr class="click ${cls}" data-act="dailyEdit" data-id="${esc(d)}"><td>${dLabel(d)}</td><td>${esc(r.weather || '')}</td><td class="n"><b>${yen(t)}</b></td><td class="n">${int(r.guests)}${(r.guestsLunch !== '' && r.guestsLunch != null) || (r.guestsDinner !== '' && r.guestsDinner != null) ? `<br><span class="small muted">昼${int(r.guestsLunch)}/夜${int(r.guestsDinner)}</span>` : ''}</td><td class="n">${num(r.guests) ? yen(t / num(r.guests)) : '—'}${isFinite(sp.ul) || isFinite(sp.ud) ? `<br><span class="small muted">昼${isFinite(sp.ul) ? yen(sp.ul) : '—'}/夜${isFinite(sp.ud) ? yen(sp.ud) : '—'}${sp.est ? '<span title="キャッシュレスは現金の比率で按分した概算です">概算</span>' : ''}</span>` : ''}</td><td class="n">${r.cashLunch !== '' && r.cashLunch != null ? yen(r.cashLunch) : ''}</td><td class="n">${r.cashDinner !== '' && r.cashDinner != null ? yen(r.cashDinner) : (r.cashLunch === '' || r.cashLunch == null ? yen(r.cash) : '')}</td><td class="n">${yen(num(r.card) + num(r.qr) + num(r.other))}</td><td class="n">${pDay(r.date) ? yen(pDay(r.date)) : ''}</td><td class="n">${labByDay[r.date] ? yen(labByDay[r.date]) : ''}</td><td>${haccp(r).pill}${tempList(r).length ? `<br><span class="small muted">体温${tempList(r).length}名</span>` : ''}</td><td class="wrap small">${esc(r.note || '')}</td><td class="small muted">${esc(r.by || '')}</td></tr>`;
     }).join('');
     return `<div class="stats">${stat('売上合計', yen(tot), `${recs.length}営業日`)}${stat('日平均', yen(recs.length ? tot / recs.length : 0))}${stat('客数', int(g) + '人', (g ? '平均客単価 ' + yen(tot / g) : '') + (sum(recs, r => r.guestsLunch) || sum(recs, r => r.guestsDinner) ? `　昼${int(sum(recs, r => r.guestsLunch))}/夜${int(sum(recs, r => r.guestsDinner))}` : ''))}${stat('現金売上（昼／夜）', yen(sum(recs, r => r.cashLunch)) + ' / ' + yen(sum(recs, r => (r.cashLunch === '' || r.cashLunch == null) && (r.cashDinner === '' || r.cashDinner == null) ? r.cash : r.cashDinner)))}${stat('衛生記録', recs.filter(r => haccp(r).filled).length + ' / ' + recs.length + '日', recs.filter(r => haccp(r).filled && haccp(r).ng.length).length ? '要確認 ' + recs.filter(r => haccp(r).filled && haccp(r).ng.length).length + '日' : '')}</div>
     ${kpiCard(S.month)}
     <div class="toolbar"><button class="btn primary" data-act="dailyToday">今日の日報を書く</button><span class="sp"></span><button class="btn" data-act="dailyCSV">CSV保存</button><button class="btn" data-act="dailyPrint">A4の印刷用に保存</button><button class="btn" data-act="hcPrint">衛生記録を印刷用に保存</button></div>
-    <div class="tw"><table class="tbl"><thead><tr><th>日付</th><th>天気</th><th class="n">売上</th><th class="n">客数</th><th class="n">客単価</th><th class="n">現金（ランチ）</th><th class="n">現金（ディナー）</th><th class="n">キャッシュレス</th><th class="n">仕入</th><th>衛生</th><th>特記事項</th><th>記入</th></tr></thead><tbody>${rows}</tbody>
-    <tfoot><tr><td>合計</td><td></td><td class="n">${yen(tot)}</td><td class="n">${int(g)}</td><td class="n">${g ? yen(tot / g) : '—'}</td><td class="n">${yen(sum(recs, r => r.cashLunch))}</td><td class="n">${yen(sum(recs, r => (r.cashLunch === '' || r.cashLunch == null) && (r.cashDinner === '' || r.cashDinner == null) ? r.cash : r.cashDinner))}</td><td class="n">${yen(sum(recs, r => num(r.card) + num(r.qr) + num(r.other)))}</td><td class="n">${yen(sum(L('purch', S.month), p => num(p.a8) + num(p.a10)))}</td><td colspan="3"></td></tr></tfoot></table></div>
+    <div class="tw"><table class="tbl"><thead><tr><th>日付</th><th>天気</th><th class="n">売上</th><th class="n">客数</th><th class="n">客単価</th><th class="n">現金（ランチ）</th><th class="n">現金（ディナー）</th><th class="n">キャッシュレス</th><th class="n">仕入</th><th class="n">人件費<br><span class="small muted">時給の人</span></th><th>衛生</th><th>特記事項</th><th>記入</th></tr></thead><tbody>${rows}</tbody>
+    <tfoot><tr><td>合計</td><td></td><td class="n">${yen(tot)}</td><td class="n">${int(g)}</td><td class="n">${g ? yen(tot / g) : '—'}</td><td class="n">${yen(sum(recs, r => r.cashLunch))}</td><td class="n">${yen(sum(recs, r => (r.cashLunch === '' || r.cashLunch == null) && (r.cashDinner === '' || r.cashDinner == null) ? r.cash : r.cashDinner))}</td><td class="n">${yen(sum(recs, r => num(r.card) + num(r.qr) + num(r.other)))}</td><td class="n">${yen(sum(L('purch', S.month), p => num(p.a8) + num(p.a10)))}</td><td class="n">${yen(labTotal)}</td><td colspan="3"></td></tr></tfoot></table></div>
     <p class="hint">スマレジの日次売上を見ながら入力してください。テイクアウト分は消費税8%として仕訳CSVに反映されます。衛生管理の記録と、その日の仕入の入力も日報の中にあります。入力した仕入は自動で仕入帳に記帳されます。</p>`;
   }
 };
 const dailyRows = () => {
   const recs = L('daily', S.month).sort(byDate);
-  return [['日付', '天気', '売上合計', '現金(ランチ)', '現金(ディナー)', '現金合計', 'カード', 'QR・電子マネー', 'その他', 'うちテイクアウト', '客数(ランチ)', '客数(ディナー)', '客数合計', '組数', '記入者', '特記事項', '冷蔵庫(℃)', '冷凍庫(℃)', ...HC_CHECKS.map(c => c[1]), '出勤者の体温', '衛生の異常と対応'],
-    ...recs.map(r => [r.date, r.weather, dailyTotal(r), num(r.cashLunch), (r.cashLunch === '' || r.cashLunch == null) && (r.cashDinner === '' || r.cashDinner == null) ? num(r.cash) : num(r.cashDinner), num(r.cash), num(r.card), num(r.qr), num(r.other), num(r.takeout), num(r.guestsLunch), num(r.guestsDinner), num(r.guests), num(r.groups), r.by, r.note,
+  const timeRecs = L('time', S.month);
+  const rnd = v => isFinite(v) ? Math.round(v) : '';
+  return [['日付', '天気', '売上合計', '現金(ランチ)', '現金(ディナー)', '現金合計', 'カード', 'QR・電子マネー', 'その他', 'うちテイクアウト', '売上(ランチ)', '売上(ディナー)', '客単価(ランチ)', '客単価(ディナー)', '人件費(時給の人)', '客数(ランチ)', '客数(ディナー)', '客数合計', '組数', '記入者', '特記事項', '冷蔵庫(℃)', '冷凍庫(℃)', ...HC_CHECKS.map(c => c[1]), '出勤者の体温', '衛生の異常と対応'],
+    ...recs.map(r => [r.date, r.weather, dailyTotal(r), num(r.cashLunch), (r.cashLunch === '' || r.cashLunch == null) && (r.cashDinner === '' || r.cashDinner == null) ? num(r.cash) : num(r.cashDinner), num(r.cash), num(r.card), num(r.qr), num(r.other), num(r.takeout),
+      rnd(daySplit(r).lunch), rnd(daySplit(r).dinner), rnd(daySplit(r).ul), rnd(daySplit(r).ud), dayLabor(r.date, timeRecs).total,
+      num(r.guestsLunch), num(r.guestsDinner), num(r.guests), num(r.groups), r.by, r.note,
       r.hcFridge ?? '', r.hcFreezer ?? '', ...HC_CHECKS.map(([k]) => r[k] ? '○' : ''), tempList(r).map(x => `${x.name} ${x.t}℃`).join('、'), r.hcNote || ''])];
 };
 A.dailyCSV = () => saveFile(`日報_${S.month}.csv`, toCSV(dailyRows()));
-A.dailyPrint = () => printTable(`日報_${S.month}.html`, `日報一覧　${ymLabel(S.month)}`, dailyRows(), { land: true, fs: '6.6pt', n: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 16, 17], note: '○＝確認済み。金額は税込。売上の日ごとの内訳だけを税理士さんに渡すときは「売上日計表」をお使いください。' });
+A.dailyPrint = () => printTable(`日報_${S.month}.html`, `日報一覧　${ymLabel(S.month)}`, dailyRows(), { land: true, fs: '6.3pt', n: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 21, 22], note: '○＝確認済み。金額は税込。客単価の昼夜はキャッシュレスのランチ分が未入力なら現金の比率で按分した概算です。人件費は時給の人の概算（通勤手当・割増込み、月給の社員は含みません）。売上の日ごとの内訳だけを税理士さんに渡すときは「売上日計表」をお使いください。' });
 
 A.hcPrint = () => {
   const set = SET(); const recs = L('daily', S.month).sort(byDate);
@@ -1467,6 +1521,22 @@ function kpiCard(ym) {
     </div>
     <p class="hint">原価率は30%以下、FL比率は60%以下が一般的な目安です。人件費はタイムカードから計算した総支給額、経費は経費帳と小口現金の合計です。給与や家賃をまだ入力していない月は、数字が小さく出ます。</p></div>`;
 }
+// 日報を書くときに出す「本日のアルバイト人件費」
+function laborBox(date) {
+  const l = dayLabor(date);
+  if (!l.rows.length && !l.open) return '';
+  return `<div class="note-box bar" style="margin:0 0 10px"><span class="sp">
+    <b>本日のアルバイト人件費 ${yen(l.total)}</b>（${l.rows.length}名・実働 ${hrs(l.work)}h）<span id="dlaborRate"></span>
+    <br><span class="small muted">${l.rows.map(r => `${esc(r.name)} ${hrs(r.work)}h ${yen(r.total)}`).join('　/　')}${l.open ? `　<span class="pill warn">退勤の打刻がまだの人が${l.open}名</span>` : ''}
+    <br>時給の人だけの概算です（通勤手当・1日8時間超・22時以降の割増を含む／月給の社員は入りません）</span></span></div>`;
+}
+function updDLaborRate(date) {
+  const el = $('#dlaborRate'); if (!el) return;
+  const g = k => num(($('#f_' + k) || {}).value);
+  const sales = g('cashLunch') + g('cashDinner') + g('card') + g('qr') + g('other');
+  const l = dayLabor(date);
+  el.innerHTML = sales > 0 ? `　<span class="pill ${rateCls2(l.total / sales * 100, 25, 32)}">人件費率 ${(l.total / sales * 100).toFixed(1)}%</span>` : '';
+}
 // 日報を書くときに出す、小さな数字パネル
 function dailyKpiBox(d) {
   const ym = ymOf(d); const k = monthKPI(ym); const cc = cardCloseInfo(d);
@@ -1474,8 +1544,10 @@ function dailyKpiBox(d) {
   const close = cc ? `<div class="note-box warn" style="margin:0 0 10px"><b>本日はカードの締め日です（${esc(cc.label)}）</b><br>
     カード売上　<b style="font-size:17px">${yen(cc.card)}</b>${cc.qr ? `　／　QR・電子マネー ${yen(cc.qr)}` : ''}${cc.other ? `　／　その他 ${yen(cc.other)}` : ''}
     <br><span class="small">この金額が入金予定額の目安です。入金されたら「売掛・買掛」で消し込みしてください。</span></div>` : '';
-  if (!k.sales && !k.purch && !k.labor && !close) return '';
+  const lab = laborBox(d);
+  if (!k.sales && !k.purch && !k.labor && !close && !lab) return '';
   return `<div class="lines" style="border-top:1px solid var(--line);padding-top:12px">
+    ${lab}
     <span class="small muted" style="font-weight:700">${esc(ymLabel(ym))}の数字（ここまでの累計）</span>
     ${close}
     <div class="row" style="flex-wrap:wrap;gap:8px">
