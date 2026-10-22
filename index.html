@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-DNTsIzeK+6Hgi4ePrBqtV001EwI8h+trF3UMQfAzsiQ='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data: blob: https://tzmptqweehooidklvhpv.supabase.co; object-src https://tzmptqweehooidklvhpv.supabase.co; base-uri 'none'; form-action 'none'; manifest-src 'self'"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="のどぐろ家姫川"><meta name="theme-color" content="#23467A"></head><body>
+<html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-8xw1tM6p4N07dB38L4+3mepp4z5NWSoxqjelxmQ9aEo='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://tzmptqweehooidklvhpv.supabase.co; img-src 'self' data: blob: https://tzmptqweehooidklvhpv.supabase.co; object-src https://tzmptqweehooidklvhpv.supabase.co; base-uri 'none'; form-action 'none'; manifest-src 'self'"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="のどぐろ家姫川"><meta name="theme-color" content="#23467A"></head><body>
 <title>のどぐろ家姫川</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -329,7 +329,7 @@ const DENOMS = [10000, 5000, 1000, 500, 100, 50, 10, 5, 1];
 const WEATHER = ['晴れ', '曇り', '雨', '雪', '晴れ時々曇り', '曇り時々雨'];
 // 定額法の償却率（平成19年4月1日以後取得）
 const SL_RATE = { 2: .5, 3: .334, 4: .25, 5: .2, 6: .167, 7: .143, 8: .125, 9: .112, 10: .1, 11: .091, 12: .084, 13: .077, 14: .072, 15: .067, 16: .063, 17: .059, 18: .056, 19: .053, 20: .05, 22: .046, 24: .042, 25: .04, 30: .034, 34: .03, 39: .026, 47: .022 };
-const DEF_SET = { shop: '', trade: '', owner: '', addr: '', tel: '', invoiceNo: '', openDate: '', float: 30000, cashStart: 0, cashStartMonth: '', coinStart: 0, coinStartMonth: '', coinAuto: '全額', bank: '', snsPlace: '糸魚川', snsTag: '', invStart: 0, weekLimit: 40, payday: 25, monthlyHours: 173, reportMail: 'kabusikigaisya.umeda@gmail.com', reportCc: '', nightPay: true };
+const DEF_SET = { shop: '', trade: '', owner: '', addr: '', tel: '', invoiceNo: '', openDate: '', float: 30000, cashStart: 0, cashStartMonth: '', coinStart: 0, coinStartMonth: '', coinAuto: '全額', bank: '', snsPlace: '糸魚川', snsTag: '', invStart: 0, weekLimit: 40, payday: 25, monthlyHours: 173, reportMail: 'kabusikigaisya.umeda@gmail.com', reportCc: '', nightPay: true, printPortrait: false };
 const useNight = () => SET().nightPay !== false; // 深夜割増（22時〜5時）を使うか
 // 「,」「;」改行・空白で区切られたメールアドレスを配列に
 const mailList = v => String(v || '').split(/[,;、\s]+/).map(x => x.trim()).filter(x => /^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(x));
@@ -584,11 +584,41 @@ async function saveFile(filename, data) {
     toast('保存できませんでした（' + ((e && e.code) || 'error') + '）');
   }
 }
-function printDoc(title, bodyHTML, css = '') {
-  return `<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>${esc(title)}</title><style>
-  @page{size:A4;margin:14mm}body{font-family:"BIZ UDPGothic","Hiragino Sans","Yu Gothic","Meiryo",sans-serif;color:#111;font-size:11pt}
+function printDoc(title, bodyHTML, css = '', opt = {}) {
+  // たて／よこは開いたあとに切り替えられる。よこ向きの表をたてにすると、はみ出さないよう自動で縮める
+  const land = !!opt.land && SET().printPortrait !== true, mg = opt.margin || (land ? '10mm' : '14mm');
+  return `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><style>
+  body{font-family:"BIZ UDPGothic","Hiragino Sans","Yu Gothic","Meiryo",sans-serif;color:#111;font-size:11pt;margin:0;padding:10px}
   h1{font-size:16pt;margin:0 0 4mm}table{border-collapse:collapse;width:100%;font-size:9.5pt}th,td{border:1px solid #999;padding:3px 5px;text-align:left}th{background:#eee}td.n,th.n{text-align:right}
-  .meta{font-size:9pt;color:#444;margin-bottom:4mm}${css}</style></head><body>${bodyHTML}</body></html>`;
+  .meta{font-size:9pt;color:#444;margin-bottom:4mm}
+  .pbar{position:sticky;top:0;z-index:9;display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#f3f4f6;border:1px solid #d7dae0;border-radius:8px;padding:8px 10px;margin:0 0 10px;font-size:13px}
+  .pbar button{font:inherit;padding:6px 14px;border:1px solid #c3c7cf;border-radius:7px;background:#fff;cursor:pointer;min-height:36px}
+  .pbar button.on{background:#23467A;color:#fff;border-color:#23467A;font-weight:700}
+  .pbar small{color:#555}
+  #sheet{margin:0 auto}
+  @media print{.pbar{display:none}body{padding:0}}
+  ${css}</style></head><body>
+  <div class="pbar">印刷の向き<button type="button" data-o="portrait">たて</button><button type="button" data-o="landscape">よこ</button><small>切り替えてから印刷してください（この行は印刷されません）</small></div>
+  <div id="sheet">${bodyHTML}</div>
+  <style id="po">@page{size:A4 ${land ? 'landscape' : 'portrait'};margin:${mg}}</style>
+  <script>(function(){
+    var po=document.getElementById('po'), sh=document.getElementById('sheet'), bar=document.querySelector('.pbar');
+    function set(o){
+      po.textContent='@page{size:A4 '+o+';margin:${mg}}';
+      [].forEach.call(bar.querySelectorAll('button'),function(b){b.className=b.getAttribute('data-o')===o?'on':'';});
+      // 用紙に入る幅を測り、はみ出す分だけ縮める（縮めたあとも紙いっぱいに広がるようにする）
+      var probe=document.createElement('div');
+      probe.style.cssText='position:absolute;visibility:hidden;height:0;width:calc('+(o==='landscape'?'297mm':'210mm')+' - 2*${mg})';
+      document.body.appendChild(probe); var have=probe.offsetWidth; probe.parentNode.removeChild(probe);
+      sh.style.zoom=''; sh.style.width='min-content'; // これ以上は詰められない幅
+      var need=sh.scrollWidth;
+      if(need>have+1){ sh.style.zoom=Math.max(.4, Math.floor(have/need*100)/100); sh.style.width=need+'px'; }
+      else { sh.style.width=have+'px'; }
+    }
+    bar.addEventListener('click',function(e){var b=e.target.closest('button[data-o]'); if(b) set(b.getAttribute('data-o'));});
+    set('${land ? 'landscape' : 'portrait'}');
+  })();<\/script>
+  </body></html>`;
 }
 /* ---- A4印刷（表をそのまま印刷用のHTMLに） ---- */
 function printTable(file, title, rows, opts = {}) {
@@ -605,7 +635,7 @@ function printTable(file, title, rows, opts = {}) {
     ${foot ? `<tfoot><tr>${foot.map((c, i) => cell(c, i, 'th')).join('')}</tr></tfoot>` : ''}</table>
     ${opts.note ? `<p style="font-size:8.5pt">${esc(opts.note)}</p>` : ''}`;
   saveFile(file, printDoc(title, html,
-    `${opts.land ? '@page{size:A4 landscape;margin:10mm}' : ''}table{font-size:${opts.fs || '9pt'}}th,td{padding:2px 4px}tfoot th{background:#eee}tr.sub td{background:#f1f1f1;font-weight:700}td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}tr{break-inside:avoid}thead{display:table-header-group}`));
+    `table{font-size:${opts.fs || '9pt'}}th,td{padding:2px 4px}tfoot th{background:#eee}tr.sub td{background:#f1f1f1;font-weight:700}td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}tr{break-inside:avoid}thead{display:table-header-group}`, { land: opts.land }));
 }
 
 /* ===================== Supabase 接続（ライブラリ不使用・REST直接） ===================== */
@@ -2557,7 +2587,7 @@ CHG.allgAll = el => { allgAll = el.checked; render(); };
 A.allgCSV = () => { const list = recipes().filter(r => allgAll || r.onMenu); saveFile('アレルゲン表.csv', toCSV([['メニュー', ...ALLERGENS], ...list.map(r => { const a = new Set(recipeCost(r).allergens); return [r.name, ...ALLERGENS.map(x => a.has(x) ? '●' : '')]; })])); };
 A.allgHTML = () => {
   const list = recipes().filter(r => allgAll || r.onMenu); const set = SET();
-  saveFile('アレルゲン表.html', printDoc('アレルゲン一覧', `<h1>アレルゲン一覧</h1><div class="meta">${esc(set.shop || '')}　${today()}時点　●＝使用しています</div><table><thead><tr><th>メニュー</th>${ALLERGENS.map(a => `<th style="writing-mode:vertical-rl;text-orientation:upright;font-size:8pt;${ALLERGEN_REQ.includes(a) ? 'background:#f6d6d0' : ''}">${esc(a)}</th>`).join('')}</tr></thead><tbody>${list.map(r => { const a = new Set(recipeCost(r).allergens); return `<tr><td>${esc(r.name)}</td>${ALLERGENS.map(x => `<td style="text-align:center;color:#b3372e">${a.has(x) ? '●' : ''}</td>`).join('')}</tr>`; }).join('')}</tbody></table><p style="font-size:8.5pt">色付きの列は表示義務のある特定原材料（9品目）。同じ調理器具・油を使用するため、微量の混入の可能性があります。ご不安な方はスタッフにお声がけください。</p>`, '@page{size:A4 landscape}'));
+  saveFile('アレルゲン表.html', printDoc('アレルゲン一覧', `<h1>アレルゲン一覧</h1><div class="meta">${esc(set.shop || '')}　${today()}時点　●＝使用しています</div><table><thead><tr><th>メニュー</th>${ALLERGENS.map(a => `<th style="writing-mode:vertical-rl;text-orientation:upright;font-size:8pt;${ALLERGEN_REQ.includes(a) ? 'background:#f6d6d0' : ''}">${esc(a)}</th>`).join('')}</tr></thead><tbody>${list.map(r => { const a = new Set(recipeCost(r).allergens); return `<tr><td>${esc(r.name)}</td>${ALLERGENS.map(x => `<td style="text-align:center;color:#b3372e">${a.has(x) ? '●' : ''}</td>`).join('')}</tr>`; }).join('')}</tbody></table><p style="font-size:8.5pt">色付きの列は表示義務のある特定原材料（9品目）。同じ調理器具・油を使用するため、微量の混入の可能性があります。ご不安な方はスタッフにお声がけください。</p>`, '', { land: true }));
 };
 /* ---------- メニュー制作 ---------- */
 const MENU_STYLES = {
@@ -3092,6 +3122,7 @@ const F_SET = [
   { k: 'float', label: 'レジ釣銭準備金', type: 'money' }, { k: 'cashStart', label: '小口現金の開始残高', type: 'money' },
   { k: 'cashStartMonth', label: '小口現金の開始月', type: 'month' },
   { k: 'coinStart', label: '売上小銭の開始残高', type: 'money', hint: '売上小銭出納帳のいちばん最初の繰越額' }, { k: 'coinStartMonth', label: '売上小銭の開始月', type: 'month' },
+  { k: 'printPortrait', label: '印刷の向き', type: 'check', cl: '横長の表も「たて」で開く（はみ出す分は自動で縮めます）', hint: '印刷用に保存したファイルの上にある「たて／よこ」でも、その場で切り替えられます' },
   { k: 'bank', label: '売上を入金する銀行', full: true, ph: '例：第四北越銀行 糸魚川支店', hint: '「売上小銭出納帳」の銀行入金・両替の入金先として最初から入ります' },
   { k: 'coinAuto', label: '売上小銭の自動記帳', type: 'select', opts: [{ v: '全額', l: '日報の現金売上を全額入れる' }, { v: '端数', l: '1,000円未満の端数だけ入れる' }, { v: 'なし', l: '自動では入れない（手入力のみ）' }], hint: '日報を保存すると、その日の現金売上が売上小銭出納帳に自動で載ります' }, { k: 'invStart', label: '期首商品棚卸高（開業年）', type: 'money' },
   { k: 'weekLimit', label: '週の法定労働時間', type: 'select', opts: [{ v: 40, l: '40時間' }, { v: 44, l: '44時間（常時10人未満の飲食店＝特例措置対象事業場）' }] },
